@@ -15,8 +15,10 @@ ENV HOME=/home/app \
     PORT=7860
 WORKDIR /home/app/readra
 
-COPY --chown=app:app requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+# requirements.txt lists what the app needs; constraints.txt pins every package those pull in, so a
+# rebuild next month installs exactly what was tested today.
+COPY --chown=app:app requirements.txt constraints.txt ./
+RUN pip install --no-cache-dir --user -r requirements.txt -c constraints.txt
 
 COPY --chown=app:app . .
 

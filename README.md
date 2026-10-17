@@ -69,8 +69,8 @@ python eval/test_server.py       # 19 tests: rate limits, memory cleanup, input 
 
 ## Run locally
 ```bash
-git clone https://github.com/<your-username>/readra.git
-cd readra
+git clone https://github.com/beyzcy/Readra-Chat-With-Your-Pdf.git
+cd Readra-Chat-With-Your-Pdf
 pip install -r requirements.txt
 export GROQ_API_KEY="gsk_..."        # free key: https://console.groq.com/keys (or let visitors enter their own)
 uvicorn server:app --reload --port 8000
