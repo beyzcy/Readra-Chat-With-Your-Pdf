@@ -79,7 +79,7 @@ On the development set (32 + 5 questions) the same checks gave 100% / 0% / 100% 
 ```bash
 python eval/run_eval.py          # retrieval metrics; add GROQ_API_KEY for answer-level metrics
 python eval/test_grounding.py    # 22 tests: evidence parsing, verification, judge, self-correction
-python eval/test_server.py       # 40 tests: rate limits, memory cleanup, input checks, key handling
+python eval/test_server.py       # 47 tests: rate limits, memory cleanup, input checks, key handling
 ```
 Answer-level metrics (wrong-value rate, verified-quote rate, correct refusals) are written to [eval/RESULTS.md](eval/RESULTS.md) when `run_eval.py` runs with a key.
 

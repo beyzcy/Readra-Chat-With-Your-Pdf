@@ -77,6 +77,12 @@
   .tab:hover { color: var(--ink); border-color: var(--line); }
   .tab.active { background: var(--ink); color: var(--bg); font-weight: 500; }
   .tab.active svg { color: var(--accent); }
+  .tab { cursor: pointer; flex: none; }
+  .tab-x {
+    display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 -6px 0 2px; padding: 0; border: 0; border-radius: 50%;
+    background: transparent; color: inherit; opacity: .55; font-size: 16px; line-height: 1; cursor: pointer; transition: .2s var(--ease);
+  }
+  .tab-x:hover, .tab-x:focus-visible { opacity: 1; background: rgba(127,127,127,.28); }
   .spacer { flex: 1; }
   .icon-btn {
     display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: transparent;
@@ -537,9 +543,27 @@ function applyState(info, { fresh = false, quiet = false } = {}) {
 }
 function renderTabs() {
   $("tabs").innerHTML = docs.map((d) =>
-    `<button class="tab ${d.name === active ? "active" : ""}" type="button" data-name="${esc(d.name)}" title="${esc(d.name)}">${FILE_ICON}<span>${esc(shortName(d.name))}</span></button>`).join("");
-  $("tabs").querySelectorAll(".tab").forEach((t) => (t.onclick = () => { active = t.dataset.name; renderTabs(); renderViewer(); }));
+    `<div class="tab ${d.name === active ? "active" : ""}" role="button" tabindex="0" data-name="${esc(d.name)}" title="${esc(d.name)}">${FILE_ICON}<span>${esc(shortName(d.name))}</span><button class="tab-x" type="button" aria-label="Close ${esc(d.name)}" title="Close this document">×</button></div>`).join("");
+  $("tabs").querySelectorAll(".tab").forEach((t) => {
+    const open = () => { active = t.dataset.name; renderTabs(); renderViewer(); };
+    t.onclick = (e) => { if (!e.target.closest(".tab-x")) open(); };
+    t.onkeydown = (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === t) { e.preventDefault(); open(); } };
+    t.querySelector(".tab-x").onclick = (e) => { e.stopPropagation(); closeDoc(t.dataset.name); };
+  });
   renderScope();
+}
+
+async function closeDoc(name) {
+  if (busy) return;
+  try {
+    const info = await (await api("/api/document?file=" + encodeURIComponent(name), { method: "DELETE" })).json();
+    if (!info.docs.length) { $("startOver").onclick(); return; }
+    docs = info.docs;
+    if (active === name) active = docs[0].name;
+    renderTabs(); renderViewer(); updateNotice();
+    welcome(info);
+    toast(`Closed ${shortName(name, 28)}.`);
+  } catch (e) { toast(e.message); }
 }
 
 /* Which documents a question searches: the open one (default) or all of them. */

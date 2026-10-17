@@ -361,6 +361,29 @@ class PDFIndex:
         self.file_chunks[filename] = self.file_chunks.get(filename, 0) + len(new)
         return len(new)
 
+    def remove_file(self, filename: str) -> None:
+        """Drop one document from the workspace: its vectors, text, pages and the PDF itself."""
+        if filename not in self.files:
+            return
+        gone = [c for c in self.chunks if c.file == filename]
+        if gone:
+            self.collection.delete(ids=[c.id for c in gone])
+        self.chunks = [c for c in self.chunks if c.file != filename]
+        for c in gone:
+            self._by_id.pop(c.id, None)
+        for store in (self._page_text, self._ocr_lines):
+            for key in [k for k in store if k[0] == filename]:
+                del store[key]
+        with self._render_lock:
+            doc = self._docs.pop(filename, None)
+            if doc is not None:
+                doc.close()
+        self._pdfs.pop(filename, None)
+        self.sizes.pop(filename, None)
+        self.files.remove(filename)
+        self.n_chunks -= len(gone)
+        self.file_chunks.pop(filename, None)
+
     # ----- retrieval -----
     def _bm25(self, query: str, pool: list[Chunk], limit: int) -> list[Chunk]:
         q = set(_terms(query))

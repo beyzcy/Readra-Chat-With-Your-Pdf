@@ -70,6 +70,24 @@ c.delete("/api/session", headers=H1)
 check("deleting the session frees its vectors", collections() == base)
 check("a deleted session is gone", c.get("/api/state", headers=H1).status_code == 404)
 
+print("closing one document")
+HD = new_session()
+up = lambda n: c.post("/api/upload", files=[("files", (n, PDF, "application/pdf"))], headers=HD)
+up("one.pdf"); up("two.pdf")
+idx = server._sessions[HD["X-Session"]].index
+total = idx.n_chunks
+left = c.delete("/api/document", params={"file": "one.pdf"}, headers=HD).json()
+check("closing a document keeps the other", [d["name"] for d in left["docs"]] == ["two.pdf"])
+check("its passages are gone from the index", idx.n_chunks == total // 2 and all(ch.file == "two.pdf" for ch in idx.chunks) and idx.collection.count() == idx.n_chunks)
+check("its pages can no longer be rendered", c.get("/api/render", params={"file": "one.pdf", "page": 1, "session": HD["X-Session"]}).status_code == 404)
+check("the remaining document still renders", c.get("/api/render", params={"file": "two.pdf", "page": 1, "session": HD["X-Session"]}).status_code == 200)
+check("a file can be added again after closing it", len(up("one.pdf").json()["docs"]) == 2)
+c.delete("/api/document", params={"file": "one.pdf"}, headers=HD)
+last = c.delete("/api/document", params={"file": "two.pdf"}, headers=HD).json()
+check("closing the last document empties the workspace", last["docs"] == [] and server._sessions[HD["X-Session"]].index is None)
+check("closing an unknown document is a 404", c.delete("/api/document", params={"file": "nope.pdf"}, headers=HD).status_code == 404)
+c.delete("/api/session", headers=HD)
+
 print("session cap")
 server.MAX_SESSIONS = 5
 for _ in range(12):

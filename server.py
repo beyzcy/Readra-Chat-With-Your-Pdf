@@ -304,6 +304,18 @@ def upload(files: list[UploadFile] = File(...), x_session: str | None = Header(N
     return {**state(s), "skipped": skipped}
 
 
+@app.delete("/api/document")
+def remove_document(file: str, x_session: str | None = Header(None)) -> dict:
+    """Close one document; the rest of the workspace stays."""
+    s = _doc_session(x_session, file)
+    s.index.remove_file(file)
+    if not s.index.files:
+        s.set_index(None)
+    s.history = []   # earlier answers may have quoted the document that is now gone
+    s.scope_key = None
+    return state(s)
+
+
 @app.post("/api/sample", dependencies=[limited("upload", 12, 600)])
 def load_sample(name: str = "sample_handbook.pdf", x_session: str | None = Header(None)) -> dict:
     s = get_session(x_session)
