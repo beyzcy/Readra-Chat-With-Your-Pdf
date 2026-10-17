@@ -1,81 +1,93 @@
-# Readra: chat with your PDFs, and see where each answer comes from
+# Readra
 
-Upload documents, ask in plain language, and get answers that are **checked against the source and highlighted on the exact page**. Built for documents where "probably" is not good enough: contracts, policies, bookings, manuals.
+**Chat with your PDFs. Every answer is checked against the source and highlighted on the exact page.**
 
-**Live demo:** _add your deployed link here_
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
+![RAG](https://img.shields.io/badge/RAG-hybrid%20retrieval%20%2B%20reranking-bf8440)
 
 <p align="center">
-  <img src="docs/landing.png" alt="Landing page" width="48%">
-  <img src="docs/workspace.png" alt="Document viewer with the matched row highlighted" width="48%">
+  <img src="docs/landing.png" alt="Readra landing page" width="48%">
+  <img src="docs/workspace.png" alt="The PDF viewer with the evidence for an answer highlighted" width="48%">
 </p>
 
-_Left: landing page. Right: a Turkish flight booking; the highlighted row is where an answer's evidence quote was found. The booking stores labels and values in separate column streams, which is exactly the layout that makes naive PDF chat tools mix up a payment time and a departure time._
+## The problem
+Most "chat with PDF" tools sound confident and are sometimes quietly wrong. A flight booking was uploaded to one and asked *"when is the flight?"*; it answered with the **payment time**. The PDF stored its table column by column, so a plain text dump listed every label first and every value later, and the model had to guess which belonged together.
 
-## Why it exists
-A flight ticket was uploaded to a typical "chat with PDF" tool and asked *"when is the flight?"*. It answered with the **payment time**. The PDF stored its table column by column, so a plain text dump listed every label first and every value later, and the model had to guess. Readra is built around not letting that happen silently.
+Readra is built so that this kind of error is **prevented where possible and visible where not**.
 
-## Features
-- **Verified answers.** Every answer carries verbatim evidence quotes; the server checks that they exist in the source, that every number, time and date appears in the cited text, and a second pass checks that the quoted *label* matches the question. A mismatch triggers one automatic correction. Each answer shows *Verified*, *Not fully verified* or *Possible mix-up*.
-- **Click a citation, see the page.** The PDF viewer jumps to the page and marks the exact sentence or row, on text PDFs and scans alike.
-- **Table-aware text extraction** that keeps `Label | Value` together.
-- **Scanned PDFs and screenshots-as-PDF.** Image-only pages, or pages whose real content is a picture, are read with OCR (RapidOCR, runs locally).
-- **Hybrid retrieval.** Multilingual embeddings + BM25 + a multilingual cross-encoder reranker.
+## What it does
+- **Verified answers.** Each answer comes with verbatim evidence quotes. The server checks that they exist in the source, that every number, time and date appears in the cited text, and a second pass checks that the quoted *label* matches the question. A mismatch triggers one automatic correction. Answers are marked *Verified*, *Not fully verified* or *Possible mix-up*.
+- **Click a citation, see the page.** The viewer jumps to the page and marks the exact sentence or table row, for text PDFs and scans alike.
+- **Table-aware extraction** that keeps `Label | Value` together, and **OCR** for scanned pages and pages whose content is only a picture.
+- **Hybrid retrieval** (multilingual embeddings + BM25 + a multilingual cross-encoder reranker) across one or several documents.
 - **Any language in, same language out.** Tested in English, Turkish and German.
-- **Multiple documents** with per-document or all-document search, and follow-up questions.
-- **Streaming answers** via Groq (Llama 3.3 70B / 3.1 8B); the model list is read live, so model names never go stale.
-- **Safe to expose publicly:** per-client rate limits, bounded memory, upload checks, friendly error messages.
+- **Built to be exposed publicly:** per-client rate limits, bounded memory, upload checks, readable error messages. Visitors use their own Groq key, so it costs nothing to host.
 
 ## How it works
-```
-PDF → row-aware text (PyMuPDF; OCR for scans and picture-only content) → 600-char chunks
-    → multilingual embeddings (ChromaDB) + BM25 → reciprocal-rank fusion
-    → multilingual cross-encoder rerank → top-5 pages (short pages sent whole)
-    → Llama 3.3 (Groq): answer + verbatim evidence quotes
-    → server checks quotes and values against the source → judge → (self-correction) → UI
+```mermaid
+flowchart LR
+    A[PDF] --> B["Row-aware text<br/>+ OCR for scans"]
+    B --> C[Chunks]
+    C --> D["Embeddings + BM25<br/>rank fusion"]
+    D --> E[Cross-encoder rerank]
+    E --> F["LLM answer<br/>+ evidence quotes"]
+    F --> G["Check quotes<br/>and values"]
+    G --> H["Judge the label,<br/>self-correct"]
+    H --> I["Answer with<br/>highlighted source"]
 ```
 
 | Safeguard | What it prevents |
 |---|---|
-| **Row-aware extraction**: short lines on the same visual row become `Label  \|  Value`. | Labels separated from their values in column-stored tables. |
-| **OCR for sparse pages**: pages with little real text, or large pictures, are also OCR'd. | Content that exists only as an image (a browser printout whose body is a picture). |
-| **Hybrid retrieval + reranker** | Exact terms (codes, times, names) missed by embeddings alone. |
-| **Whole short pages as context** | A value losing its neighbouring labels at a chunk boundary. |
-| **Evidence quotes**, verified verbatim | Invented or paraphrased "evidence". |
-| **Value check** on numbers, times and dates | Hallucinated figures. |
-| **Judge + self-correction** on the quoted label | Mix-ups such as a payment time given as the flight time. |
-| **Visible status and clickable quotes** | Silent errors. |
+| Row-aware extraction: short lines on one visual row become `Label \| Value` | Labels separated from their values in column-stored tables |
+| OCR for sparse pages and picture-only content | Content that exists only as an image (e.g. a browser printout whose body is a picture) |
+| Hybrid retrieval + reranker; whole short pages as context | Exact terms missed by embeddings; a value losing its neighbouring labels |
+| Evidence quotes, verified verbatim | Invented or paraphrased "evidence" |
+| Value check on numbers, times and dates | Hallucinated figures |
+| Judge + self-correction on the quoted label | A payment time given as the flight time |
 
-No system is perfect. These layers reduce errors and make the remaining ones visible; they do not prove an answer correct. Check high-stakes values (dates, amounts) against the highlighted source.
+No system is perfect: these layers reduce errors and expose the remaining ones, they do not prove an answer correct. Check high-stakes values against the highlighted source.
 
 ## Evaluation
-`eval/` holds a 12-page handbook and a one-page Turkish flight booking with 37 labelled questions in English, Turkish and German (5 unanswerable).
+`eval/` holds a 12-page handbook and a one-page Turkish flight booking (labels and values stored in separate column streams, the failure case above) with 37 labelled questions in English, Turkish and German, 5 of them unanswerable.
 
-| Retrieval (top-5 pages) | Score |
+| Retrieval, top-5 pages | Score |
 |---|---|
-| Page Hit@1 | 100% |
-| Page Hit@5 | 100% |
-| MRR | 1.00 |
-| Page Hit@1, non-English questions | 100% |
+| Correct page ranked first (Hit@1) | 100% |
+| Correct page in the top 5 (Hit@5) | 100% |
+| Mean reciprocal rank | 1.00 |
+| Hit@1 on non-English questions | 100% |
 
-Retrieval history on the handbook: embeddings only 90% Hit@1, with BM25 fusion 97%, with the reranker 100%. The set is small and self-built, so read it as a regression suite, not a benchmark.
-
-**Answer-level metrics** (wrong-value rate, verified-quote rate, correct refusals) need a Groq key and are **not quoted here until they have been run**: `GROQ_API_KEY=gsk_... python eval/run_eval.py` writes them to [eval/RESULTS.md](eval/RESULTS.md).
+On the handbook alone, embeddings-only retrieval reached 90% Hit@1; adding BM25 fusion raised it to 97% and the reranker to 100%. The set is small and self-built, so treat it as a regression suite rather than a benchmark.
 
 ```bash
-python eval/run_eval.py          # retrieval metrics (add GROQ_API_KEY for answer metrics)
-python eval/test_grounding.py    # 22 tests: evidence parsing, verification, judge and self-correction (scripted model)
-python eval/test_server.py       # 19 tests: rate limits, memory cleanup, input checks, error messages
+python eval/run_eval.py          # retrieval metrics; add GROQ_API_KEY for answer-level metrics
+python eval/test_grounding.py    # 22 tests: evidence parsing, verification, judge, self-correction
+python eval/test_server.py       # 39 tests: rate limits, memory cleanup, input checks, key handling
 ```
+Answer-level metrics (wrong-value rate, verified-quote rate, correct refusals) are written to [eval/RESULTS.md](eval/RESULTS.md) when `run_eval.py` runs with a key.
 
-## Run locally
+## Quick start
+
+**Docker** (models are baked into the image, about 2.8 GB):
+```bash
+docker build -t readra .
+docker run -p 7860:7860 readra
+```
+Open http://localhost:7860. The image builds and passes a smoke test (health, pages, OCR sample).
+
+**Python:**
 ```bash
 git clone https://github.com/beyzcy/Readra-Chat-With-Your-Pdf.git
 cd Readra-Chat-With-Your-Pdf
 pip install -r requirements.txt
-export GROQ_API_KEY="gsk_..."        # free key: https://console.groq.com/keys (or let visitors enter their own)
-uvicorn server:app --reload --port 8000
+uvicorn server:app --port 8000
 ```
-Open http://localhost:8000. The first start downloads the models (embeddings ~0.2 GB, reranker ~0.6 GB, OCR a few MB).
+The first start downloads the models (embeddings ~0.2 GB, reranker ~0.6 GB). To ask questions, create a free key at [console.groq.com/keys](https://console.groq.com/keys) and enter it under ⚙ Settings.
+
+<details>
+<summary><b>Configuration</b></summary>
 
 | Environment variable | Default | Meaning |
 |---|---|---|
@@ -85,9 +97,13 @@ Open http://localhost:8000. The first start downloads the models (embeddings ~0.
 | `READRA_MAX_SESSIONS` | `150` | Concurrent sessions kept in memory. |
 | `PORT` | `7860` in Docker | Listening port. |
 
-## Deploy (Hugging Face Spaces, Docker)
-1. Create a Space, choose **Docker** as the SDK.
-2. Push this folder to it. At the top of the Space's `README.md` add:
+</details>
+
+<details>
+<summary><b>Deploy to Hugging Face Spaces</b></summary>
+
+1. Create a Space and choose **Docker** as the SDK.
+2. Push this repository. Add this block at the top of the Space's `README.md`:
    ```yaml
    ---
    title: Readra
@@ -95,32 +111,47 @@ Open http://localhost:8000. The first start downloads the models (embeddings ~0.
    app_port: 7860
    ---
    ```
-3. **Do not add a `GROQ_API_KEY` secret** for a public demo. Without it, every visitor uses their own free Groq key (entered in Settings), so the demo costs you nothing and nobody shares a quota. Only set it for a private deployment you control.
-4. The image downloads all models at build time (~0.9 GB), so the first visit is fast.
+3. Do **not** add a `GROQ_API_KEY` secret for a public demo; visitors bring their own free key.
+4. Models are downloaded at build time, so the first visit is fast.
 
-The same `Dockerfile` works on Render, Railway or Fly.io. Test locally with `docker build -t readra . && docker run -p 7860:7860 -e GROQ_API_KEY=gsk_... readra`.
+The same `Dockerfile` works on Render, Railway or Fly.io.
+</details>
 
-> The Dockerfile has not been built on the author's machine yet (Docker Desktop was not running); the first build on the host is the real test. Everything it runs was verified outside Docker.
+## Limits and privacy
+- Documents are held **in memory only**, per session, and discarded after an hour of inactivity or when removed. Nothing is stored permanently.
+- Questions and the retrieved passages are sent to Groq to generate an answer, so do not use confidential documents with a hosted demo. A visitor's Groq key stays in their browser tab; the server does not store it, and a test checks that it never reaches the log.
+- Limits: 5 files per workspace, 20 MB per file, 40 MB per workspace, OCR on at most 25 pages per file, 20 questions per minute per client.
+- Sessions live in one process: this is a demo-scale design, not a multi-tenant service. There are no accounts and no persistence, by intent.
+- OCR is tuned for upright pages in Latin scripts; very small or low-contrast text can be misread. Verification catches many such cases but cannot make a misread value correct.
 
-## Limits, privacy and honest caveats
-- **Privacy.** Documents are held in memory only, per session, and discarded after an hour of inactivity or when removed. Nothing is stored permanently. Questions and the retrieved passages are sent to Groq to generate an answer, so do not use confidential documents with a hosted demo. A visitor's Groq key stays in their browser tab and is sent with their own requests only; the server does not store it, and a test checks that it never reaches the log.
-- **Limits.** 5 files per workspace, 20 MB per file, 40 MB per workspace, OCR on at most 25 pages per file, 20 questions per minute per client.
-- **Single process.** Sessions live in memory, so the app runs as one instance. It is a demo-scale design, not a multi-tenant service.
-- **OCR** is tuned for upright pages in Latin scripts; very small or low-contrast text can be misread. Verification catches many such cases but cannot make a misread value correct.
-- **No accounts, no persistence.** Intentional for a demo.
+## Tech stack
+| Area | Tools |
+|---|---|
+| Backend | Python, FastAPI, Uvicorn, streaming responses |
+| Retrieval | ChromaDB, BM25, FastEmbed (multilingual MiniLM), BGE reranker v2-m3 (int8) |
+| Documents | PyMuPDF, RapidOCR (ONNX Runtime) |
+| LLM | Groq API (Llama 3.3 70B, Llama 3.1 8B) |
+| Frontend | Vanilla HTML, CSS and JavaScript, no build step; canvas animation |
+| Delivery | Docker (non-root, healthcheck, pinned dependencies) |
 
-## Project layout
+<details>
+<summary><b>Project layout</b></summary>
+
 ```
-server.py          FastAPI app: API, sessions, rate limits, streaming, verification flow
-rag.py             parsing, OCR, hybrid retrieval, reranking, grounding checks, highlighting
-static/            landing.html, index.html (app), leaves.js (landing animation), leaves/ (images)
-eval/              dataset, retrieval/answer evaluation, sample generators, tests
-prefetch_models.py downloads models at image build time
-Dockerfile         non-root image, healthcheck, models baked in
+server.py           FastAPI app: API, sessions, rate limits, streaming, verification flow
+rag.py              parsing, OCR, hybrid retrieval, reranking, grounding checks, highlighting
+static/             landing page, app, leaves.js (animation), leaves/ (images), og-image.png
+eval/               dataset, evaluation, sample generators, tests
+docs/               screenshots used in this README
+prefetch_models.py  downloads models at image build time
+requirements.txt    direct dependencies, pinned
+constraints.txt     every package pinned (used by the Dockerfile)
+Dockerfile          non-root image, healthcheck, models baked in
 ```
+</details>
 
-## Use cases
-Company policies and HR handbooks · contracts · bookings and invoices · research papers · product manuals · internal knowledge bases
+## What this project demonstrates
+Retrieval-augmented generation with hybrid search and reranking · answer verification and self-correction · OCR and layout-aware PDF parsing · retrieval and grounding evaluation with regression tests · a streaming FastAPI service with rate limiting and bounded memory · a custom, responsive front end · reproducible Docker delivery.
 
 ## Author
-**Hatice Beyza Ceyhan**, AI engineer (RAG, LLM apps, computer vision). Available for freelance projects on Upwork.
+**Hatice Beyza Ceyhan**, AI engineer (RAG, LLM applications, computer vision). Available for freelance projects on Upwork.
