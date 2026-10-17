@@ -48,6 +48,8 @@ check("/healthz answers", c.get("/healthz").json()["ok"] is True)
 page = c.get("/", headers={"host": "readra.example"}).text
 check("landing page learns its own address for link previews", "http://readra.example/static/og-image.png" in page and "{{BASE}}" not in page)
 check("security headers are set", c.get("/healthz").headers.get("x-content-type-options") == "nosniff")
+csp = c.get("/healthz").headers.get("content-security-policy", "")
+check("the app may be embedded by Hugging Face, and by no other site", "https://huggingface.co" in csp and "https://*.hf.space" in csp and "*;" not in csp)
 
 print("input checks")
 H = new_session()

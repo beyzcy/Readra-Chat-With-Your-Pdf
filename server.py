@@ -86,7 +86,11 @@ async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "same-origin")
-    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    # Hugging Face shows a Space inside an iframe on huggingface.co, so those origins must be allowed to embed us.
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "frame-ancestors 'self' https://huggingface.co https://*.huggingface.co https://*.hf.space",
+    )
     return response
 
 

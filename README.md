@@ -50,21 +50,36 @@ flowchart LR
 No system is perfect: these layers reduce errors and expose the remaining ones, they do not prove an answer correct. Check high-stakes values against the highlighted source.
 
 ## Evaluation
-`eval/` holds a 12-page handbook and a one-page Turkish flight booking (labels and values stored in separate column streams, the failure case above) with 37 labelled questions in English, Turkish and German, 5 of them unanswerable.
+Two question sets, kept apart on purpose. Every rate carries a 95% Wilson confidence interval, because with a few dozen questions the interval is the honest size of the claim.
 
-| Retrieval, top-5 pages | Score |
+- **Development set** (37 questions, handbook + Turkish flight booking): written while fixing known failures, so it is optimistic. It scores 100% and serves as a regression suite.
+- **Held-out set** (58 questions, 5 unseen documents): an English invoice and its scanned (OCR) copy, a lease, a two-column paper and a timetable. It targets look-alike values (issue vs due date, subtotal vs total), column-stored tables, computed answers, Turkish questions and 13 unanswerable questions. The pipeline was not tuned on it.
+
+| Held-out retrieval, top-5 pages (47 answerable) | Result |
 |---|---|
-| Correct page ranked first (Hit@1) | 100% |
-| Correct page in the top 5 (Hit@5) | 100% |
-| Mean reciprocal rank | 1.00 |
-| Hit@1 on non-English questions | 100% |
+| Correct page ranked first | 96% (45/47; 95% CI 86-99%) |
+| Correct page in the top 5 | 100% (47/47; 95% CI 92-100%) |
+| Mean reciprocal rank | 0.98 |
+| Evidence passage in the top 3 chunks | 100% (47/47) |
 
-On the handbook alone, embeddings-only retrieval reached 90% Hit@1; adding BM25 fusion raised it to 97% and the reranker to 100%. The set is small and self-built, so treat it as a regression suite rather than a benchmark.
+Two misses at rank 2 ("When is the payment due?", "What is the late payment fee?"). Only 2 non-English held-out questions, so that interval is very wide.
+
+**Answers** (`openai/gpt-oss-120b` via Groq, temperature 0). On the held-out set 46 of 56 questions were answered before Groq's rate limit stopped the run; the other 10 (timetable and part of the paper) are not counted, so these figures cover 41 answerable and 5 unanswerable questions:
+
+| Held-out answers | Result |
+|---|---|
+| Expected fact present | 100% (41/41; 95% CI 91-100%) |
+| A forbidden look-alike value appears | 0% (0/41; 95% CI 0-9%) |
+| Evidence quote found verbatim in the source | 100% (41/41) |
+| Answer contains a value absent from the cited text | 2% (1/41) |
+| Unanswerable questions correctly refused | 100% (5/5; 95% CI 57-100%) |
+
+On the development set (32 + 5 questions) the same checks gave 100% / 0% / 100% / 0% / 100%. Correctness, look-alike and refusal checks are keyword heuristics, not human grading, so the model may still be wrong in ways they miss.
 
 ```bash
 python eval/run_eval.py          # retrieval metrics; add GROQ_API_KEY for answer-level metrics
 python eval/test_grounding.py    # 22 tests: evidence parsing, verification, judge, self-correction
-python eval/test_server.py       # 39 tests: rate limits, memory cleanup, input checks, key handling
+python eval/test_server.py       # 40 tests: rate limits, memory cleanup, input checks, key handling
 ```
 Answer-level metrics (wrong-value rate, verified-quote rate, correct refusals) are written to [eval/RESULTS.md](eval/RESULTS.md) when `run_eval.py` runs with a key.
 

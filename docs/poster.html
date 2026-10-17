@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Readra cover</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#17150f; --ink:#ece8dc; --muted:#b3ab97; --soft:#968c74; --line:#3a3626; --amber:#bf8440; --amber-hi:#d9a35f; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1600px; background: var(--bg); }
+  body { font-family: "Inter", "Segoe UI", system-ui, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  .canvas { position: relative; width: 1600px; height: var(--h, 900px); overflow: hidden; padding: 56px 72px 48px;
+    background: radial-gradient(1200px 700px at 78% 40%, #231e14 0%, transparent 70%),
+                linear-gradient(180deg, #1c1710 0%, #17150f 45%, #141a11 100%); display: grid;
+    grid-template-columns: 660px 1fr; column-gap: 64px; grid-template-rows: 1fr auto; }
+  .canvas::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .05;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+  .leaf { position: absolute; z-index: 0; opacity: .9; }
+  .left { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; }
+  .brand { display: flex; align-items: center; gap: 14px; font-size: 40px; font-weight: 650; letter-spacing: -.03em; margin-bottom: 34px; }
+  .brand svg { width: 66px; height: 66px; overflow: visible; }
+  h1 { font-size: 64px; line-height: 1.04; font-weight: 700; letter-spacing: -.04em; }
+  h1 .hl { background: linear-gradient(var(--amber), var(--amber)) no-repeat 0 90% / 100% .26em; }
+  .sub { margin-top: 22px; font-size: 25px; line-height: 1.4; color: var(--muted); max-width: 600px; }
+  .feats { list-style: none; padding: 0; margin-top: 34px; display: grid; gap: 18px; }
+  .feat { display: grid; grid-template-columns: 50px 1fr; column-gap: 18px; align-items: start; }
+  .ico { width: 50px; height: 50px; border-radius: 14px; background: rgba(191,132,64,.14); color: var(--amber-hi); display: grid; place-items: center; }
+  .ico svg { width: 26px; height: 26px; }
+  .feat b { display: block; font-size: 23px; font-weight: 600; letter-spacing: -.015em; }
+  .feat i { display: block; font-style: normal; font-size: 18px; line-height: 1.35; color: var(--muted); margin-top: 2px; }
+  .right { position: relative; z-index: 2; display: flex; align-items: center; }
+  .frame { position: relative; width: 100%; border-radius: 20px; background: #221d19; border: 1px solid var(--line);
+    box-shadow: 0 40px 90px rgba(0,0,0,.55); overflow: hidden; }
+  .bar { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--line); background: #1d1a13; }
+  .bar i { width: 11px; height: 11px; border-radius: 50%; background: #3a3626; }
+  .bar span { margin-left: 14px; font-size: 14px; color: var(--soft); }
+  .shot { height: var(--shot-h, 470px); overflow: hidden; }
+  .frame img { display: block; width: 150%; max-width: none; }
+  .evidence { position: absolute; z-index: 3; left: -48px; bottom: var(--ev-bottom, 56px); width: 470px; background: #27231a; border: 1px solid #4a4333;
+    border-radius: 16px; padding: 16px 18px 12px; box-shadow: 0 24px 60px rgba(0,0,0,.6); }
+  .evidence .head { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+  .evidence .dot { width: 10px; height: 10px; border-radius: 50%; background: #6fbf8f; }
+  .evidence .row { display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: baseline; border-top: 1px solid var(--line); padding: 9px 0 4px; font-size: 16px; }
+  .evidence .row b { color: #6fbf8f; } .evidence .row em { font-style: normal; color: var(--amber-hi); font-size: 14px; }
+  .strip { grid-column: 1 / -1; position: relative; z-index: 2; display: flex; gap: 10px; align-items: center; padding-top: 22px; }
+  .strip small { font-size: 15px; color: var(--soft); margin-right: 8px; }
+  .strip span { border: 1px solid var(--line); border-radius: 999px; padding: 7px 16px; font-size: 16px; color: var(--muted); background: rgba(255,255,255,.02); }
+  .strip .by { margin-left: auto; margin-right: 150px; border: 0; padding: 0; background: none; color: var(--soft); font-size: 16px; }
+  /* the 2:1 social card is 100 px shorter than the 16:9 cover */
+  body.social .canvas { --h: 800px; padding-top: 44px; padding-bottom: 38px; }
+  body.social .brand { margin-bottom: 22px; } body.social .brand svg { width: 58px; height: 58px; }
+  body.social h1 { font-size: 60px; } body.social .sub { font-size: 22px; margin-top: 16px; }
+  body.social .feats { margin-top: 24px; gap: 13px; } body.social .feat i { display: none; }
+  body.social .ico { width: 44px; height: 44px; } body.social .feat { grid-template-columns: 44px 1fr; align-items: center; }
+  body.social { --shot-h: 440px; --ev-bottom: 56px; }
+</style></head>
+<body class="cover">
+<div class="canvas">
+  <img class="leaf" src="../static/leaves/leaf-01-maple-orange.png" style="left:-34px;top:-40px;width:150px;transform:rotate(34deg)" alt="">
+  <img class="leaf" src="../static/leaves/leaf-05-ginkgo-gold.png" style="right:420px;top:-34px;width:116px;transform:rotate(-24deg)" alt="">
+  <img class="leaf" src="../static/leaves/leaf-03-beech-red.png" style="right:-34px;top:120px;width:104px;transform:rotate(58deg);opacity:.8" alt="">
+  <img class="leaf" src="../static/leaves/leaf-02-oak-brown.png" style="right:-44px;bottom:-64px;width:132px;transform:rotate(-40deg)" alt="">
+  <img class="leaf" src="../static/leaves/leaf-04-aspen-yellow.png" style="right:150px;bottom:-60px;width:100px;transform:rotate(20deg);opacity:.85" alt="">
+  <div class="left">
+    <div class="brand"><svg viewBox="0 0 80 80" class="" aria-hidden="true"><g fill="none" stroke="#ece8dc" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M40 74V40M28 74h24M40 58L27 44M40 52L54 40M40 42V24M27 44L20 36M54 40L60 32M40 34L32 26M40 28L48 21"/></g><g transform="translate(17 33) rotate(-55)"><image href="../static/leaves/leaf-05-ginkgo-gold.png" x="-11.00" y="-9.97" width="22.00" height="19.94"/></g><g transform="translate(31 23) rotate(-25)"><image href="../static/leaves/leaf-03-beech-red.png" x="-6.88" y="-11.00" width="13.75" height="22.00"/></g><g transform="translate(40 15) rotate(0)"><image href="../static/leaves/leaf-04-aspen-yellow.png" x="-9.90" y="-11.00" width="19.81" height="22.00"/></g><g transform="translate(50 18) rotate(28)"><image href="../static/leaves/leaf-07-chestnut-orange.png" x="-4.32" y="-11.00" width="8.64" height="22.00"/></g><g transform="translate(63 29) rotate(55)"><image href="../static/leaves/leaf-01-maple-orange.png" x="-11.00" y="-10.18" width="22.00" height="20.37"/></g><g transform="translate(20 47) rotate(-80)"><image href="../static/leaves/leaf-02-oak-brown.png" x="-6.25" y="-11.00" width="12.50" height="22.00"/></g><g transform="translate(60 44) rotate(80)"><image href="../static/leaves/leaf-06-willow-darkred.png" x="-2.94" y="-11.00" width="5.89" height="22.00"/></g></svg>Readra</div>
+    <h1>Chat with your PDFs.<br><span class="hl">Every answer verified.</span></h1>
+    <p class="sub">Answers are checked against the source and highlighted on the exact page.</p>
+    <ul class="feats"><li class="feat"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span><b>Verified answers</b><i>Evidence quotes are checked against the source, and a judge catches mixed-up values</i></span></li><li class="feat"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M6 16l9-9 3 3-9 9H6z"/></svg></span><span><b>Highlighted on the page</b><i>Click a citation and the viewer marks the exact sentence or table row</i></span></li><li class="feat"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></span><span><b>Hybrid retrieval and reranking</b><i>Embeddings, BM25 and a multilingual cross-encoder, in any language</i></span></li><li class="feat"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3"/><path d="M8 12h8"/></svg></span><span><b>Tables, scans and OCR</b><i>Row-aware extraction keeps every label with its value</i></span></li></ul>
+  </div>
+  <div class="right">
+    <div class="frame">
+      <div class="bar"><i></i><i></i><i></i><span>Readra · ticket_tr.pdf</span></div>
+      <div class="shot"><img src="app-viewer.png" alt=""></div>
+    </div>
+    <div class="evidence">
+      <div class="head"><span class="dot"></span>Verified against the document</div>
+      <div class="row"><b>✓</b><span>Kalkış | İzmir Adnan Menderes (ADB) - 07:15</span><em>p. 1</em></div>
+    </div>
+  </div>
+  <div class="strip"><small>Built with</small><span>FastAPI</span><span>ChromaDB</span><span>BM25</span><span>BGE reranker</span><span>PyMuPDF</span><span>RapidOCR</span><span>Groq</span><span>Docker</span><span class="by">Hatice Beyza Ceyhan</span></div>
+</div>
+</body></html>

@@ -1,25 +1,93 @@
 # Evaluation results
 
-32 answerable + 5 unanswerable questions over 2 documents (a 12-page handbook and a one-page Turkish flight booking whose labels and values are stored in separate column streams) · English, Turkish, German · embeddings `paraphrase-multilingual-MiniLM-L12-v2` + BM25 · reranker: off · top 5 pages
+Embeddings `paraphrase-multilingual-MiniLM-L12-v2` + BM25 · reranker: `BAAI/bge-reranker-v2-m3-int8` · top 5 pages. Every rate shows its count and a 95% Wilson confidence interval: with few questions the interval is wide, and that is the honest size of the claim.
 
-## Retrieval
+## Development set
 
-| Metric | Score |
+Written while fixing known failures, so this set is optimistic by construction.
+
+### Retrieval
+
+| Metric | Result |
 |---|---|
-| Page Hit@1 | 97% |
-| Page Hit@5 | 100% |
-| Page MRR | 0.98 |
-| Page Hit@1 (non-English questions) | 93% |
-| Evidence-chunk Hit@1 | 64% |
-| Evidence-chunk Hit@3 | 100% |
+| Correct page ranked first | 100% (32/32; 95% CI 89-100%) |
+| Correct page in the top 5 | 100% (32/32; 95% CI 89-100%) |
+| Mean reciprocal rank | 1.00 |
+| Non-English questions, page first | 100% (14/14; 95% CI 78-100%) |
+| Evidence passage is the top chunk | 73% (8/11; 95% CI 43-90%) |
+| Evidence passage in the top 3 chunks | 100% (11/11; 95% CI 74-100%) |
 
-_Evidence-chunk Hit@k: the passage containing the exact answer is among the top k retrieved chunks._
+### Answers (`openai/gpt-oss-120b`, temperature 0)
+
+| Metric | Result |
+|---|---|
+| Expected fact present | 100% (32/32; 95% CI 89-100%) |
+| **A forbidden look-alike value appears** | 0% (0/32; 95% CI 0-11%) |
+| Evidence quotes verified verbatim | 100% (32/32; 95% CI 89-100%) |
+| Judge flagged a possible mix-up | 0% (0/32; 95% CI 0-11%) |
+| A value absent from the cited text | 0% (0/32; 95% CI 0-11%) |
+| Unanswerable questions refused | 100% (5/5; 95% CI 57-100%) |
+
+By kind of question (correct and no forbidden value; for unanswerable: refused):
+
+| Kind | Result |
+|---|---|
+| other | 100% (37/37; 95% CI 91-100%) |
+
+## Held-out test set
+
+Written once, not used to tune the pipeline. Two extraction bugs (a label and its value in different fonts were ordered wrongly; two text columns were read interleaved) were found by inspecting the extracted text of these documents and fixed *before any question was run*.
+
+### Retrieval
+
+| Metric | Result |
+|---|---|
+| Correct page ranked first | 96% (45/47; 95% CI 86-99%) |
+| Correct page in the top 5 | 100% (47/47; 95% CI 92-100%) |
+| Mean reciprocal rank | 0.98 |
+| Non-English questions, page first | 100% (2/2; 95% CI 34-100%) |
+| Evidence passage is the top chunk | 96% (45/47; 95% CI 86-99%) |
+| Evidence passage in the top 3 chunks | 100% (47/47; 95% CI 92-100%) |
 
 Not ranked first:
 
-- “Uçuş ne zaman?” → evidence found at rank 2
-- “Uçuş saati kaç?” → evidence found at rank 2
-- “Berlin'e hangi saatte varıyorum?” → evidence found at rank 2
-- “Gidiş uçuş numaram nedir?” → evidence found at rank 2
+- “When is the payment due?” (invoice_en.pdf): rank 2
+- “What is the late payment fee?” (contract_en.pdf): rank 2
 
-_Answer-level metrics need `GROQ_API_KEY`; run `python eval/run_eval.py` with a key to add them._
+### Answers (`openai/gpt-oss-120b`, temperature 0)
+
+| Metric | Result |
+|---|---|
+| Expected fact present | 100% (41/41; 95% CI 91-100%) |
+| **A forbidden look-alike value appears** | 0% (0/41; 95% CI 0-9%) |
+| Evidence quotes verified verbatim | 100% (41/41; 95% CI 91-100%) |
+| Judge flagged a possible mix-up | 0% (0/41; 95% CI 0-9%) |
+| A value absent from the cited text | 2% (1/41; 95% CI 0-13%) |
+| Unanswerable questions refused | 100% (5/5; 95% CI 57-100%) |
+
+By kind of question (correct and no forbidden value; for unanswerable: refused):
+
+| Kind | Result |
+|---|---|
+| column | 100% (10/10; 95% CI 72-100%) |
+| computed | 100% (1/1; 95% CI 21-100%) |
+| lookalike | 100% (10/10; 95% CI 72-100%) |
+| ocr | 100% (4/4; 95% CI 51-100%) |
+| table | 100% (4/4; 95% CI 51-100%) |
+| text | 100% (12/12; 95% CI 76-100%) |
+| unanswerable | 100% (5/5; 95% CI 57-100%) |
+
+Failures:
+
+- “Which GPU was used for training?”: the model call failed. Got: _RateLimitError…_
+- “Who funded this research?”: the model call failed. Got: _RateLimitError…_
+- “When does ICE 705 depart?”: the model call failed. Got: _RateLimitError…_
+- “Which platform does ICE 583 leave from?”: the model call failed. Got: _RateLimitError…_
+- “What is the destination of the 09:52 train?”: the model call failed. Got: _RateLimitError…_
+- “Which train goes to Berlin?”: the model call failed. Got: _RateLimitError…_
+- “When does the train to Hanover depart?”: the model call failed. Got: _RateLimitError…_
+- “How long does the train to Bremen take?”: the model call failed. Got: _RateLimitError…_
+- “Is the ICE 705 delayed today?”: the model call failed. Got: _RateLimitError…_
+- “How much does a ticket to Munich cost?”: the model call failed. Got: _RateLimitError…_
+
+_Correctness, forbidden-value and refusal checks are keyword heuristics, not human grading._

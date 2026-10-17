@@ -103,50 +103,78 @@ def _squash(text: str) -> str:
 
 
 # ---------- row-aware text extraction ----------
-def _rows_text(items: list[tuple[float, float, float, float, str]], page_width: float) -> str:
+def _rows_text(items: list[tuple[float, float, float, float, str]], page_width: float, merge: bool = True) -> str:
     """Join short text lines that sit on the same visual row with ' | '.
 
     Printed forms and tables are often stored column by column, so a label and its value end up
     far apart in a plain text dump. Merging by visual row keeps `Departure | 07:15` together.
-    Long lines (paragraphs, two-column papers) are never merged.
+    Long lines (paragraphs) are never merged, and `merge=False` (pages set in columns) switches it off.
     """
-    rows: list[list[tuple[float, float, float, str, bool]]] = []
+    rows: list[list[tuple[float, float, float, float, str, bool]]] = []  # (x0, x1, y0, y1, text, short)
     for x0, y0, x1, y1, text in items:
-        text = text.replace(" ", " ").strip()
+        text = text.replace("\u00a0", " ").strip()
         if not text:
             continue
-        short = len(text) <= 40 and (x1 - x0) <= 0.42 * page_width
+        short = merge and len(text) <= 40 and (x1 - x0) <= 0.42 * page_width
         placed = False
         if short:
             for row in reversed(rows[-6:]):
-                if not all(c[4] for c in row):
+                if not all(c[5] for c in row):
                     continue
-                ry0, ry1 = min(c[1] for c in row), max(c[2] for c in row)
+                ry0, ry1 = min(c[2] for c in row), max(c[3] for c in row)
                 overlap = min(y1, ry1) - max(y0, ry0)
-                if overlap >= 0.5 * min(y1 - y0, ry1 - ry0) and x0 > max(c[0] for c in row):
-                    row.append((x0, y0, y1, text, True))
+                # beside the cells already in the row (on either side), never on top of one
+                apart = all(x1 <= c[0] + 1 or x0 >= c[1] - 1 for c in row)
+                if overlap >= 0.5 * min(y1 - y0, ry1 - ry0) and apart:
+                    row.append((x0, x1, y0, y1, text, True))
                     placed = True
                     break
         if not placed:
-            rows.append([(x0, y0, y1, text, short)])
-    return "\n".join("  |  ".join(c[3] for c in sorted(r, key=lambda c: c[0])) for r in rows)
+            rows.append([(x0, x1, y0, y1, text, short)])
+    return "\n".join("  |  ".join(c[4] for c in sorted(r, key=lambda c: c[0])) for r in rows)
 
 
-def _page_items(page: pymupdf.Page) -> list[tuple[float, float, float, float, str]]:
+def _order_blocks(blocks: list[dict], page_width: float) -> tuple[list[dict], bool]:
+    """Reading order of a page's text blocks, and whether row merging is safe on it.
+
+    Top to bottom normally. A page set in two text columns is read column by column; sorting it by
+    height would interleave the columns paragraph by paragraph, and rows would join text across them.
+    """
+    mid, tol = page_width / 2, 0.05 * page_width
+    box = lambda b: b["bbox"]  # noqa: E731
+    wide = lambda b: box(b)[2] - box(b)[0] > 0.2 * page_width  # noqa: E731
+    left = [b for b in blocks if wide(b) and box(b)[2] <= mid + tol]
+    right = [b for b in blocks if wide(b) and box(b)[0] >= mid - tol]
+    span = [b for b in blocks if box(b)[0] < mid - tol and box(b)[2] > mid + tol]
+    lines = lambda bs: sum(len(b["lines"]) for bs_ in [bs] for b in bs_)  # noqa: E731
+    area = lambda bs: sum((box(b)[2] - box(b)[0]) * (box(b)[3] - box(b)[1]) for b in bs) or 1  # noqa: E731
+    if not (lines(left) >= 4 and lines(right) >= 4 and area(span) < 0.35 * area(left + right)):
+        return blocks, True
+
+    key = lambda b: (box(b)[1], box(b)[0])  # noqa: E731
+    top = min(box(b)[1] for b in left + right)
+    head = [b for b in span if box(b)[1] < top]          # a title above the columns
+    used = {id(b) for b in left + right + head}
+    rest = [b for b in blocks if id(b) not in used]      # spanning blocks below, page numbers, ...
+    return sorted(head, key=key) + sorted(left, key=key) + sorted(right, key=key) + sorted(rest, key=key), False
+
+
+def _page_items(page: pymupdf.Page) -> tuple[list[tuple[float, float, float, float, str]], bool]:
     d = page.get_text("dict", sort=True)
+    blocks = [b for b in d["blocks"] if b.get("type") == 0 and b.get("lines")]
+    blocks, merge = _order_blocks(blocks, page.rect.width)
     items = []
-    for b in d["blocks"]:
-        if b.get("type") != 0:
-            continue
+    for b in blocks:
         for ln in b["lines"]:
             t = "".join(s["text"] for s in ln["spans"])
             if t.strip():
                 items.append((*ln["bbox"], t))
-    return items
+    return items, merge
 
 
 def _page_text(page: pymupdf.Page) -> str:
-    return _rows_text(_page_items(page), page.rect.width)
+    items, merge = _page_items(page)
+    return _rows_text(items, page.rect.width, merge)
 
 
 def _image_coverage(page: pymupdf.Page) -> float:
@@ -294,8 +322,8 @@ class PDFIndex:
         page_texts: dict[tuple[str, int], str] = {}
         ocr_budget = MAX_OCR_PAGES
         for page_no, page in enumerate(doc, start=1):
-            native_items = _page_items(page)
-            text = _rows_text(native_items, page.rect.width).strip()
+            native_items, merge = _page_items(page)
+            text = _rows_text(native_items, page.rect.width, merge).strip()
             if ocr_budget > 0 and _needs_ocr(page, len(text)):
                 ocr_budget -= 1
                 extra = _ocr_only(native_items, _ocr_page(page))
