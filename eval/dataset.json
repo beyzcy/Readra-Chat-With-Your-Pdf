@@ -1,0 +1,325 @@
+[
+  {
+    "q": "What are the core working hours?",
+    "page": 1,
+    "any": [
+      "10:00",
+      "16:00"
+    ]
+  },
+  {
+    "q": "How many days per week can I work remotely?",
+    "page": 2,
+    "any": [
+      "two",
+      "2 days"
+    ]
+  },
+  {
+    "q": "How much is the home office stipend?",
+    "page": 2,
+    "any": [
+      "400"
+    ]
+  },
+  {
+    "q": "How many days of paid annual leave do full-time employees get?",
+    "page": 3,
+    "any": [
+      "25"
+    ]
+  },
+  {
+    "q": "How many unused leave days can be carried over?",
+    "page": 3,
+    "any": [
+      "5",
+      "five"
+    ]
+  },
+  {
+    "q": "After how many days of illness do I need a doctor's note?",
+    "page": 4,
+    "any": [
+      "three",
+      "3"
+    ]
+  },
+  {
+    "q": "How long is paternity leave?",
+    "page": 5,
+    "any": [
+      "4 weeks",
+      "four weeks"
+    ]
+  },
+  {
+    "q": "What is the hotel price cap per night in major cities?",
+    "page": 6,
+    "any": [
+      "160"
+    ]
+  },
+  {
+    "q": "When am I allowed to fly business class?",
+    "page": 6,
+    "any": [
+      "6 hours",
+      "six hours"
+    ]
+  },
+  {
+    "q": "What is the daily meal allowance?",
+    "page": 7,
+    "any": [
+      "40"
+    ]
+  },
+  {
+    "q": "From which amount is a receipt mandatory?",
+    "page": 7,
+    "any": [
+      "15"
+    ]
+  },
+  {
+    "q": "How large is the yearly training budget?",
+    "page": 8,
+    "any": [
+      "1,200",
+      "1200"
+    ]
+  },
+  {
+    "q": "What is the minimum password length?",
+    "page": 9,
+    "any": [
+      "14"
+    ]
+  },
+  {
+    "q": "How quickly must a lost laptop be reported?",
+    "page": 9,
+    "any": [
+      "2 hours",
+      "two hours"
+    ]
+  },
+  {
+    "q": "Above what value must gifts be declared?",
+    "page": 10,
+    "any": [
+      "50"
+    ]
+  },
+  {
+    "q": "In which months are performance reviews held?",
+    "page": 11,
+    "any": [
+      "june",
+      "december"
+    ]
+  },
+  {
+    "q": "How long is the notice period after the probation period?",
+    "page": 12,
+    "any": [
+      "3 months",
+      "three months"
+    ]
+  },
+  {
+    "q": "Yıllık ücretli izin hakkı kaç gündür?",
+    "page": 3,
+    "any": [
+      "25"
+    ],
+    "lang": "tr"
+  },
+  {
+    "q": "Evden çalışanlara verilen ev ofisi desteği ne kadar?",
+    "page": 2,
+    "any": [
+      "400"
+    ],
+    "lang": "tr"
+  },
+  {
+    "q": "Masraflar kaç gün içinde bildirilmelidir?",
+    "page": 7,
+    "any": [
+      "30"
+    ],
+    "lang": "tr"
+  },
+  {
+    "q": "Wie viele Wochen Vaterschaftsurlaub gibt es?",
+    "page": 5,
+    "any": [
+      "4"
+    ],
+    "lang": "de"
+  },
+  {
+    "q": "What is the company's dental insurance coverage?",
+    "answerable": false
+  },
+  {
+    "q": "Who is the CEO of the company?",
+    "answerable": false
+  },
+  {
+    "q": "What is the stock option vesting schedule?",
+    "answerable": false
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Uçuş ne zaman?",
+    "page": 1,
+    "any": [
+      "21 Ekim",
+      "07:15"
+    ],
+    "forbid": [
+      "14:32",
+      "14:35"
+    ],
+    "evidence": "21 Ekim 2026",
+    "lang": "tr"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Uçuş saati kaç?",
+    "page": 1,
+    "any": [
+      "07:15"
+    ],
+    "forbid": [
+      "14:32",
+      "14:35"
+    ],
+    "evidence": "07:15",
+    "lang": "tr"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Ödeme ne zaman yapıldı?",
+    "page": 1,
+    "any": [
+      "14:35"
+    ],
+    "forbid": [
+      "07:15",
+      "10:05"
+    ],
+    "evidence": "14:35",
+    "lang": "tr"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Rezervasyon hangi tarihte yapıldı?",
+    "page": 1,
+    "any": [
+      "13 Ekim"
+    ],
+    "forbid": [
+      "21 Ekim",
+      "28 Ekim"
+    ],
+    "evidence": "14:32",
+    "lang": "tr"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Dönüş uçuşu kaçta kalkıyor?",
+    "page": 1,
+    "any": [
+      "18:40"
+    ],
+    "forbid": [
+      "22:25",
+      "07:15"
+    ],
+    "evidence": "18:40",
+    "lang": "tr"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Berlin'e hangi saatte varıyorum?",
+    "page": 1,
+    "any": [
+      "10:05"
+    ],
+    "forbid": [
+      "18:40",
+      "22:25"
+    ],
+    "evidence": "10:05",
+    "lang": "tr"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Gidiş uçuş numaram nedir?",
+    "page": 1,
+    "any": [
+      "XQ 142"
+    ],
+    "forbid": [
+      "XQ 143"
+    ],
+    "evidence": "XQ 142",
+    "lang": "tr"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Rezervasyon numarası nedir?",
+    "page": 1,
+    "any": [
+      "CAGAEJ"
+    ],
+    "evidence": "CAGAEJ",
+    "lang": "tr"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Bagaj hakkım kaç kilo?",
+    "page": 1,
+    "any": [
+      "20"
+    ],
+    "evidence": "20 kg",
+    "lang": "tr"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Toplam ne kadar ödedim?",
+    "page": 1,
+    "any": [
+      "2.450"
+    ],
+    "evidence": "2.450,00",
+    "lang": "tr"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "When does the return flight land?",
+    "page": 1,
+    "any": [
+      "22:25"
+    ],
+    "forbid": [
+      "10:05"
+    ],
+    "evidence": "22:25"
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Koltuk numaram kaç?",
+    "answerable": false
+  },
+  {
+    "doc": "ticket_tr.pdf",
+    "q": "Uçakta yemek servisi var mı?",
+    "answerable": false
+  }
+]

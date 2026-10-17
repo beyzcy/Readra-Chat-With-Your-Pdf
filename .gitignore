@@ -1,0 +1,24 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# secrets: never commit keys. Visitors bring their own Groq key, so no .env is needed.
+.env
+.env.*
+
+# editors and OS
+.vscode/
+.idea/
+.claude/
+.DS_Store
+Thumbs.db
+
+# logs and local model caches (models are downloaded at image build time)
+*.log
+.cache/
+fastembed_cache/

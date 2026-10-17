@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Readra — Answers you can point to</title>
+<meta name="description" content="Readra reads your PDFs, answers in plain language, and shows the exact sentence on the exact page.">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Readra: answers you can point to">
+<meta property="og:description" content="Chat with your PDFs. Every answer is checked against the source and highlighted on the exact page.">
+<meta property="og:url" content="{{BASE}}/">
+<meta property="og:image" content="{{BASE}}/static/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23bf8440'/%3E%3Cpath d='M16 26V13M16 21l-5-5M16 18l5-5' fill='none' stroke='%2317150f' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='9' r='3.4' fill='%2317150f'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #17150f;
+    --bg-2: #211e16;
+    --line: #3a3626;
+    --ink: #ece8dc;
+    --muted: #b3ab97;
+    --soft: #968c74;
+    --accent: #bf8440;
+    --accent-hi: #d9a35f;
+    --orange: #c8622a;
+    --rust: #a2432a;
+    --mustard: #d6a92b;
+    --forest: #131a12;
+    --paper: #efece3;
+    --paper-ink: #26221d;
+    --serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+    --mono: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+    --ease: cubic-bezier(.2, .7, .2, 1);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg) linear-gradient(180deg, #1c1710 0%, #17150f 42%, #141a11 78%, #121a12 100%); color: var(--ink); font: 400 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+  :focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 3px; border-radius: 6px; }
+  textarea:focus-visible { outline: none; }
+  .wrap { width: min(1180px, 100% - 48px); margin: 0 auto; }
+  .mono { font: 500 14px/1 var(--mono); letter-spacing: -.005em; color: var(--soft); }
+
+  /* film grain + editorial column hairlines */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 100; pointer-events: none; opacity: .06;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  main, nav, footer { position: relative; z-index: 1; }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50; height: 68px; display: flex; align-items: center;
+    opacity: 0; transform: translateY(-8px); transition: opacity .8s var(--ease) 1.7s, transform .8s var(--ease) 1.7s, background .4s, border-color .4s;
+    border-bottom: 1px solid transparent;
+  }
+  body.ready nav { opacity: 1; transform: none; }
+  nav.solid { background: rgba(29,25,21,.82); backdrop-filter: blur(14px); border-color: var(--line); }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 10px; font: 600 21px/1 var(--serif); letter-spacing: -.025em; }
+  .brand svg { width: 26px; height: 26px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; padding: 13px 22px; border-radius: 999px; font-weight: 600; font-size: 15px;
+    border: 1px solid var(--line); transition: transform .3s var(--ease), background .25s, border-color .25s, color .25s;
+  }
+  .btn:hover { transform: translateY(-2px); border-color: var(--soft); }
+  .btn.solid { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .btn.solid:hover { background: #fff; }
+  .btn.amber { background: var(--accent); border-color: var(--accent); color: #1d1915; }
+  .btn.amber:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+  .btn .arr { transition: transform .3s var(--ease); }
+  .btn:hover .arr { transform: translateX(4px); }
+
+  /* ---------- Hero ---------- */
+  .hero { min-height: 100svh; display: grid; place-items: center; text-align: center; padding: 110px 0 90px; position: relative; }
+  .mark { width: clamp(76px, 9vw, 124px); height: auto; margin: 0 auto 26px; display: block; overflow: visible; }
+  .mark .stroke { fill: none; stroke: var(--ink); stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 200; stroke-dashoffset: 200; animation: draw 1.2s var(--ease) .15s forwards; }
+  .mark .bar { fill: var(--accent); transform-origin: left center; transform: scaleX(0); animation: grow .7s var(--ease) 1s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .mark .lf { transform-box: fill-box; transform-origin: center; transform: scale(0); opacity: 1;
+    animation: leafIn .7s var(--ease) calc(.95s + var(--i, 0) * .09s) forwards; transition: opacity .5s; }
+  .mark .lf.gone { opacity: 0; }
+  @keyframes leafIn { to { transform: scale(1); } }
+  .brand .tree-s { width: 30px; height: 30px; }
+  @keyframes grow { to { transform: scaleX(1); } }
+  .word { font: 600 clamp(72px, 15vw, 190px)/.92 var(--serif); letter-spacing: -.06em; margin: 0; display: flex; justify-content: center; overflow: hidden; padding: .06em .05em .12em; }
+  .word span { display: inline-block; transform: translateY(105%); animation: rise 1.1s var(--ease) forwards; }
+  .word span:nth-child(1) { animation-delay: .55s; } .word span:nth-child(2) { animation-delay: .62s; } .word span:nth-child(3) { animation-delay: .69s; }
+  .word span:nth-child(4) { animation-delay: .76s; } .word span:nth-child(5) { animation-delay: .83s; } .word span:nth-child(6) { animation-delay: .90s; }
+  @keyframes rise { to { transform: none; } }
+  .fade { opacity: 0; transform: translateY(18px); animation: up .9s var(--ease) forwards; }
+  @keyframes up { to { opacity: 1; transform: none; } }
+  .hero h2 { font: 600 clamp(24px, 3.2vw, 40px)/1.15 var(--serif); margin: 26px auto 0; max-width: 18em; letter-spacing: -.03em; animation-delay: 1.35s; }
+  .hl { background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 88% / 0 .38em; color: inherit; animation: sweep 1s var(--ease) 2.1s forwards; }
+  @keyframes sweep { to { background-size: 100% .38em; } }
+  .hero p.sub { color: var(--muted); max-width: 33em; margin: 20px auto 0; animation-delay: 1.55s; }
+  .hero .fine { margin: 18px auto 0; font-size: 14px; color: var(--soft); animation-delay: 1.95s; }
+  .hero .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; animation-delay: 1.75s; }
+
+  /* ---------- Scroll-revealed statement ---------- */
+  .statement { height: 230vh; position: relative; }
+  .statement .pin { position: sticky; top: 0; height: 100svh; display: grid; place-items: center; }
+  .statement p { font: 600 clamp(30px, 4.6vw, 62px)/1.1 var(--serif); letter-spacing: -.04em; max-width: 17em; margin: 0; }
+  .statement .w { opacity: .14; transition: opacity .25s linear; }
+  .statement .w.em { color: var(--accent-hi); }
+
+  /* ---------- How it works ---------- */
+  .how { height: 360vh; position: relative; }
+  .how .pin { position: sticky; top: 0; height: 100svh; display: grid; grid-template-columns: 5fr 7fr; gap: 64px; align-items: center; }
+  .how .eyebrow { margin-bottom: 26px; }
+  .steps { list-style: none; margin: 0; padding: 0; }
+  .steps li { padding: 20px 0 20px 28px; border-left: 1px solid var(--line); position: relative; opacity: .38; transition: opacity .5s, border-color .5s; }
+  .steps li::before { content: ""; position: absolute; left: -1px; top: 0; bottom: 0; width: 2px; background: var(--accent); transform: scaleY(0); transform-origin: top; transition: transform .6s var(--ease); }
+  .steps li.on { opacity: 1; }
+  .steps li.on::before { transform: scaleY(1); }
+  .steps h3 { font: 600 clamp(22px, 2.4vw, 30px)/1.15 var(--serif); margin: 8px 0 8px; letter-spacing: -.025em; }
+  .steps p { color: var(--muted); margin: 0; max-width: 28em; font-size: 16px; }
+
+  .stage { position: relative; height: min(560px, 70svh); }
+  .paper {
+    position: absolute; left: 0; top: 0; width: 76%; height: 100%; background: var(--paper); color: var(--paper-ink); border-radius: 6px;
+    padding: 38px 40px; box-shadow: 0 30px 80px rgba(0,0,0,.5); transform: rotate(-1.2deg); overflow: hidden;
+  }
+  .paper .hd { font: 500 10px/1 var(--mono); letter-spacing: 0; color: #8b8478; }
+  .paper h4 { font: 600 26px/1.15 var(--serif); letter-spacing: -.02em; margin: 14px 0 18px; }
+  .paper p { margin: 0 0 14px; font-size: 14.5px; line-height: 1.7; color: #3a352e; }
+  .paper .target { background: linear-gradient(rgba(191,132,64,.55), rgba(191,132,64,.55)) no-repeat 0 100% / 0 100%; transition: background-size 1.1s var(--ease); padding: 1px 0; }
+  .paper .scan { position: absolute; left: 0; right: 0; height: 90px; top: -90px; background: linear-gradient(transparent, rgba(191,132,64,.22), transparent); opacity: 0; }
+  .stage[data-step="1"] .scan { opacity: 1; animation: scan 2.4s var(--ease) infinite; }
+  @keyframes scan { to { top: 100%; } }
+  .stage[data-step="3"] .target { background-size: 100% 100%; }
+  .chip {
+    position: absolute; left: 4%; bottom: -14px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px;
+    font-size: 13.5px; display: flex; align-items: center; gap: 10px; box-shadow: 0 14px 40px rgba(0,0,0,.45);
+    opacity: 0; transform: translateY(14px); transition: .7s var(--ease);
+  }
+  .chip b { color: var(--accent-hi); font-weight: 600; }
+  .stage[data-step="1"] .chip, .stage[data-step="2"] .chip, .stage[data-step="3"] .chip { opacity: 1; transform: none; }
+  .chat {
+    position: absolute; right: 0; bottom: 6%; width: 56%; background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px; padding: 18px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5); display: flex; flex-direction: column; gap: 12px; font-size: 14.5px;
+    opacity: 0; transform: translateY(24px); transition: .8s var(--ease);
+  }
+  .stage[data-step="2"] .chat, .stage[data-step="3"] .chat { opacity: 1; transform: none; }
+  .chat .u { align-self: flex-end; background: #35302a; padding: 9px 13px; border-radius: 14px 14px 4px 14px; max-width: 90%; }
+  .chat .a { color: var(--ink); opacity: 0; transform: translateY(8px); transition: .7s var(--ease) .5s; }
+  .stage[data-step="3"] .chat .a, .stage[data-step="2"] .chat .a { opacity: 1; transform: none; }
+  .cite { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 6px; background: rgba(191,132,64,.2); color: var(--accent-hi); font-size: 12px; font-weight: 600; vertical-align: 1px; transition: .4s; }
+  .stage[data-step="3"] .cite { background: var(--accent); color: #1d1915; box-shadow: 0 0 0 6px rgba(191,132,64,.18); }
+
+  /* ---------- Capabilities ---------- */
+  section.block { padding: 150px 0; position: relative; }
+  .sec-head { display: grid; grid-template-columns: 5fr 7fr; gap: 64px; margin-bottom: 70px; align-items: end; }
+  .sec-head h2 { font: 600 clamp(32px, 4.2vw, 54px)/1.06 var(--serif); letter-spacing: -.04em; margin: 0; }
+  .sec-head p { color: var(--muted); margin: 0; max-width: 30em; }
+  .rows { border-top: 1px solid var(--line); }
+  .row { display: grid; grid-template-columns: 90px 5fr 7fr; gap: 28px; padding: 34px 0; border-bottom: 1px solid var(--line); align-items: baseline; transition: background .4s; }
+  .row:hover { background: linear-gradient(90deg, rgba(200,98,42,.09), transparent); }
+  .row .n { font: 500 12px/1 var(--mono); color: var(--accent); letter-spacing: 0; }
+  .row h3 { font: 600 clamp(21px, 2.2vw, 28px)/1.15 var(--serif); margin: 0; letter-spacing: -.025em; }
+  .row p { margin: 0; color: var(--muted); max-width: 34em; }
+
+  /* ---------- Numbers ---------- */
+  .nums { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
+  .num { padding: 44px 32px 40px 0; border-bottom: 1px solid var(--line); }
+  .num + .num { padding-left: 32px; border-left: 1px solid var(--line); }
+  .num .v { font: 600 clamp(56px, 8vw, 108px)/.98 var(--serif); letter-spacing: -.05em; }
+  .num .v small { font-size: .5em; color: var(--mustard); margin-left: .04em; }
+  .num .l { margin-top: 12px; color: var(--muted); font-size: 15px; max-width: 16em; }
+  .foot-note { margin-top: 22px; font-size: 13.5px; color: var(--soft); max-width: 52em; }
+
+  /* ---------- Final CTA ---------- */
+  .final { text-align: center; padding: 170px 0 70px; }
+  #pile { display: block; position: relative; z-index: 1; width: 100%; height: clamp(220px, 29vw, 390px); margin-top: -10px; }
+  .final h2 { font: 600 clamp(42px, 7.2vw, 100px)/1 var(--serif); letter-spacing: -.05em; margin: 0 0 40px; }
+  .final h2 em { font-style: normal; color: var(--accent-hi); }
+  footer { border-top: 1px solid var(--line); padding: 28px 0 40px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; color: var(--soft); font-size: 14px; }
+
+  /* ---------- Reveal ---------- */
+  .rv { opacity: 0; transform: translateY(30px); transition: opacity .9s var(--ease), transform .9s var(--ease); transition-delay: var(--d, 0s); }
+  .rv.in { opacity: 1; transform: none; }
+
+  @media (max-width: 860px) {
+    .wrap { width: calc(100% - 36px); }
+    .how { height: auto; padding: 100px 0; }
+    .how .pin { position: static; height: auto; grid-template-columns: 1fr; gap: 50px; }
+    .steps li { opacity: 1; } .steps li::before { transform: scaleY(1); }
+    .stage { height: 460px; }
+    .stage .chat, .stage .chip, .stage .chat .a { opacity: 1; transform: none; }
+    .stage .target { background-size: 100% 100%; }
+    .paper { width: 88%; padding: 26px; }
+    .chat { width: 70%; bottom: 16px; }
+    .statement { height: 200vh; }
+    .sec-head { grid-template-columns: 1fr; gap: 18px; margin-bottom: 44px; }
+    .row { grid-template-columns: 1fr; gap: 10px; padding: 28px 0; }
+    .nums { grid-template-columns: 1fr; }
+    .num + .num { padding-left: 0; border-left: 0; }
+    section.block { padding: 100px 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    .word span, .fade, .rv, nav { opacity: 1 !important; transform: none !important; }
+    .mark .stroke { stroke-dashoffset: 0; } .mark .bar { transform: none; }
+    .mark .lf { transform: scale(1) !important; }
+    .hl { background-size: 100% .38em; } .statement .w { opacity: 1; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 80 80" aria-hidden="true" class="tree-s"><g fill="none" stroke="#ece8dc" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M40 74V40M28 74h24M40 58L27 44M40 52L54 40M40 42V24M27 44L20 36M54 40L60 32M40 34L32 26M40 28L48 21"/></g><g transform="translate(17 33) rotate(-55)"><image href="/static/leaves/leaf-05-ginkgo-gold.png" x="-12.50" y="-11.33" width="25.00" height="22.66"/></g><g transform="translate(31 23) rotate(-25)"><image href="/static/leaves/leaf-03-beech-red.png" x="-7.81" y="-12.50" width="15.62" height="25.00"/></g><g transform="translate(40 15) rotate(0)"><image href="/static/leaves/leaf-04-aspen-yellow.png" x="-11.25" y="-12.50" width="22.51" height="25.00"/></g><g transform="translate(50 18) rotate(28)"><image href="/static/leaves/leaf-07-chestnut-orange.png" x="-4.91" y="-12.50" width="9.81" height="25.00"/></g><g transform="translate(63 29) rotate(55)"><image href="/static/leaves/leaf-01-maple-orange.png" x="-12.50" y="-11.57" width="25.00" height="23.14"/></g><g transform="translate(20 47) rotate(-80)"><image href="/static/leaves/leaf-02-oak-brown.png" x="-7.10" y="-12.50" width="14.21" height="25.00"/></g><g transform="translate(60 44) rotate(80)"><image href="/static/leaves/leaf-06-willow-darkred.png" x="-3.34" y="-12.50" width="6.69" height="25.00"/></g></svg>
+      Readra
+    </a>
+    <a class="btn solid" href="/app">Open Readra <span class="arr">→</span></a>
+  </div>
+</nav>
+
+<main>
+  <!-- HERO -->
+  <header class="hero">
+    <div class="wrap">
+      <svg class="mark" viewBox="0 0 80 80" aria-hidden="true"><path class="stroke" d="M40 74V40"/><path class="stroke" d="M28 74h24"/><path class="stroke" d="M40 58L27 44M40 52L54 40M40 42L40 24"/><path class="stroke" d="M27 44L20 36M54 40L60 32M40 34L32 26M40 28L48 21"/><g transform="translate(17 33) rotate(-55)"><image class="lf" style="--i:0" href="/static/leaves/leaf-05-ginkgo-gold.png" x="-10.00" y="-9.06" width="20.00" height="18.12"/></g><g transform="translate(31 23) rotate(-25)"><image class="lf" style="--i:1" href="/static/leaves/leaf-03-beech-red.png" x="-6.25" y="-10.00" width="12.50" height="20.00"/></g><g transform="translate(40 15) rotate(0)"><image class="lf" style="--i:2" href="/static/leaves/leaf-04-aspen-yellow.png" x="-9.00" y="-10.00" width="18.01" height="20.00"/></g><g transform="translate(50 18) rotate(28)"><image class="lf" style="--i:3" href="/static/leaves/leaf-07-chestnut-orange.png" x="-3.93" y="-10.00" width="7.85" height="20.00"/></g><g transform="translate(63 29) rotate(55)"><image class="lf" id="heroLeaf" style="--i:4" href="/static/leaves/leaf-01-maple-orange.png" x="-10.00" y="-9.26" width="20.00" height="18.52"/></g><g transform="translate(20 47) rotate(-80)"><image class="lf" style="--i:5" href="/static/leaves/leaf-02-oak-brown.png" x="-5.68" y="-10.00" width="11.37" height="20.00"/></g><g transform="translate(60 44) rotate(80)"><image class="lf" style="--i:6" href="/static/leaves/leaf-06-willow-darkred.png" x="-2.68" y="-10.00" width="5.35" height="20.00"/></g></svg>
+      <h1 class="word" aria-label="Readra"><span>R</span><span>e</span><span>a</span><span>d</span><span>r</span><span>a</span></h1>
+      <h2 class="fade">Answers you can <span class="hl">point to.</span></h2>
+      <p class="sub fade">Readra reads your documents, answers in plain language, then shows you the exact sentence on the exact page it came from.</p>
+      <div class="cta fade">
+        <a class="btn amber" href="/app">Open Readra <span class="arr">→</span></a>
+        <a class="btn" href="/app?sample=sample_handbook.pdf">Try a sample document</a>
+      </div>
+      <p class="fine fade">Free to try. You bring your own Groq API key; creating one takes about a minute.</p>
+    </div>
+  </header>
+
+  <!-- STATEMENT -->
+  <section class="statement" id="statement">
+    <div class="pin"><div class="wrap">
+      <p id="statementText" data-em="sentence,page,proof.">Most tools hand you an answer and ask for your trust. Readra hands you the sentence, the page, and the proof.</p>
+    </div></div>
+  </section>
+
+  <!-- HOW -->
+  <section class="how" id="how">
+    <div class="pin wrap">
+      <div>
+        <div class="mono eyebrow">How it works</div>
+        <ol class="steps" id="steps">
+          <li class="on"><span class="mono">01 — Upload</span><h3>Drop in a document.</h3><p>Text PDFs and scanned pages alike. Everything is split, indexed and searchable in seconds.</p></li>
+          <li><span class="mono">02 — Ask</span><h3>Ask it like a colleague.</h3><p>Plain questions, in any language. Follow-ups understand what came before.</p></li>
+          <li><span class="mono">03 — Verify</span><h3>See where it says it.</h3><p>Every claim links to its source. Click a citation and the page opens with the sentence marked.</p></li>
+        </ol>
+      </div>
+      <div class="stage" id="stage" data-step="1" aria-hidden="true">
+        <div class="paper">
+          <div class="hd">Employee handbook · Section 1</div>
+          <h4>Working hours</h4>
+          <p>Standard hours apply across all offices. Teams may agree flexible arrangements with their manager, provided that core availability is respected.</p>
+          <p><span class="target">Standard working hours are 09:00 to 18:00, Monday to Friday.</span> Employees may work remotely up to two days per week with manager approval.</p>
+          <p>Overtime must be approved in advance and is compensated as time off in lieu within sixty days.</p>
+          <div class="scan"></div>
+        </div>
+        <div class="chip"><b>handbook.pdf</b> · 12 pages · indexed</div>
+        <div class="chat">
+          <div class="u">What are the standard working hours?</div>
+          <div class="a">Standard hours are 09:00 to 18:00, Monday to Friday. <span class="cite">1</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAPABILITIES -->
+  <section class="block">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 class="rv">Built for documents that matter.</h2>
+        <p class="rv" style="--d:.1s">Contracts, policies, papers, manuals. The kind of reading where "probably" is not good enough.</p>
+      </div>
+      <div class="rows">
+        <div class="row rv"><span class="n">01</span><h3>Scanned pages, read.</h3><p>Image-only PDFs are detected automatically and read with OCR, then searched like any other page. Highlights land on the scan too.</p></div>
+        <div class="row rv"><span class="n">02</span><h3>Ask in any language.</h3><p>Ask in Turkish about an English policy. The answer comes back in the language you asked, citing the original wording.</p></div>
+        <div class="row rv"><span class="n">03</span><h3>Cited, or it says nothing.</h3><p>Each claim carries a page reference. When the document does not contain the answer, Readra tells you so instead of guessing.</p></div>
+        <div class="row rv"><span class="n">04</span><h3>Measured, not assumed.</h3><p>Retrieval is scored against a labelled question set, and every answer is checked against the quoted source before you see it.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NUMBERS -->
+  <section class="block" style="padding-top:0">
+    <div class="wrap">
+      <div class="mono rv" style="margin-bottom:22px">Evaluation</div>
+      <div class="nums">
+        <div class="num rv"><div class="v"><span data-count="100">0</span><small>%</small></div><div class="l">Right page found in the top five results</div></div>
+        <div class="num rv" style="--d:.1s"><div class="v"><span data-count="100">0</span><small>%</small></div><div class="l">Right page ranked first</div></div>
+        <div class="num rv" style="--d:.2s"><div class="v"><span data-count="1" data-dec="2">0</span></div><div class="l">Mean reciprocal rank across all questions</div></div>
+      </div>
+      <p class="foot-note rv">Measured on 32 answerable questions over a 12-page handbook and a one-page flight booking, in English, Turkish and German. A small, self-built set: it shows the method, not a universal benchmark.</p>
+    </div>
+  </section>
+
+  <!-- FINAL -->
+  <section class="final">
+    <div class="wrap">
+      <h2 class="rv">Bring a <em>document.</em></h2>
+      <div class="rv" style="--d:.15s; display:flex; gap:12px; justify-content:center; flex-wrap:wrap">
+        <a class="btn amber" href="/app">Open Readra <span class="arr">→</span></a>
+        <a class="btn" href="/app?sample=sample_scanned.pdf">Try a scanned PDF</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<canvas id="pile" aria-hidden="true"></canvas>
+
+<footer>
+  <div class="wrap">
+    <span>Readra · Chat with your PDFs</span>
+    <span>Designed and built by Hatice Beyza Ceyhan</span>
+  </div>
+</footer>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* entrance */
+requestAnimationFrame(() => document.body.classList.add("ready"));
+
+/* nav background */
+const nav = $("#nav");
+const onScroll = () => nav.classList.toggle("solid", scrollY > 24);
+addEventListener("scroll", onScroll, { passive: true }); onScroll();
+
+/* generic reveal */
+const io = new IntersectionObserver((es) => es.forEach((e) => {
+  if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+}), { threshold: 0.18, rootMargin: "0px 0px -6% 0px" });
+$$(".rv").forEach((el) => (calm ? el.classList.add("in") : io.observe(el)));
+
+/* count up */
+const countIO = new IntersectionObserver((es) => es.forEach((e) => {
+  if (!e.isIntersecting) return;
+  countIO.unobserve(e.target);
+  const el = e.target, end = parseFloat(el.dataset.count), dec = +(el.dataset.dec || 0);
+  if (calm) { el.textContent = end.toFixed(dec); return; }
+  const t0 = performance.now(), dur = 1600;
+  const tick = (t) => {
+    const p = Math.min(1, (t - t0) / dur), k = 1 - Math.pow(1 - p, 4);
+    el.textContent = (end * k).toFixed(dec);
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}), { threshold: 0.6 });
+$$("[data-count]").forEach((el) => countIO.observe(el));
+
+/* statement: words light up with scroll */
+const st = $("#statement"), stText = $("#statementText");
+const emWords = (stText.dataset.em || "").split(",");
+stText.innerHTML = stText.textContent.split(" ").map((w) => {
+  const clean = w.toLowerCase().replace(/[^a-z]/g, "");
+  return `<span class="w${emWords.some((x) => x.replace(/[^a-z]/g, "") === clean) ? " em" : ""}">${w}</span>`;
+}).join(" ");
+const words = $$(".w", stText);
+
+/* how it works: scroll position drives the step */
+const how = $("#how"), stage = $("#stage"), stepEls = $$("#steps li");
+const mobile = () => matchMedia("(max-width: 860px)").matches;
+
+let ticking = false;
+function frame() {
+  ticking = false;
+  const vh = innerHeight;
+  // statement progress
+  const sr = st.getBoundingClientRect();
+  const sp = Math.min(1, Math.max(0, -sr.top / (sr.height - vh)));
+  const lit = sp * 1.15 * words.length;
+  words.forEach((w, i) => { w.style.opacity = calm ? 1 : Math.min(1, Math.max(0.14, 0.14 + (lit - i) * 0.9)); });
+  // how progress
+  if (!mobile()) {
+    const hr = how.getBoundingClientRect();
+    const hp = Math.min(1, Math.max(0, -hr.top / (hr.height - vh)));
+    const step = hp < 0.3 ? 1 : hp < 0.62 ? 2 : 3;
+    if (stage.dataset.step != step) {
+      stage.dataset.step = step;
+      stepEls.forEach((li, i) => li.classList.toggle("on", i + 1 <= step && (i + 1 === step)));
+    }
+  }
+}
+addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }, { passive: true });
+addEventListener("resize", frame);
+frame();
+</script>
+<script src="/static/leaves.js" defer></script>
+</body>
+</html>

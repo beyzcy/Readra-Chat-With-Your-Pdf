@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Readra — Chat with your PDFs</title>
+<meta name="description" content="Ask questions about your PDFs and see the answer highlighted in the source page.">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23bf8440'/%3E%3Cpath d='M16 26V13M16 21l-5-5M16 18l5-5' fill='none' stroke='%2317150f' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='9' r='3.4' fill='%2317150f'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Readra — shared with the landing page */
+    --bg: #17150f;
+    --panel: #1d1a13;
+    --raised: #27231a;
+    --line: #3a3626;
+    --ink: #ece8dc;
+    --muted: #b3ab97;
+    --soft: #968c74;
+    --accent: #bf8440;
+    --accent-hi: #d9a35f;
+    --accent-ink: #1d1915;
+    --accent-soft: rgba(191, 132, 64, .14);
+    --err: #e0766b;
+    --orange: #c8622a;
+    --rust: #a2432a;
+    --mustard: #d6a92b;
+    --radius: 14px;
+    --shadow: 0 24px 60px rgba(0, 0, 0, .45);
+    --serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+    --mono: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+    --ease: cubic-bezier(.2, .7, .2, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg) linear-gradient(180deg, #1c1710 0%, #17150f 45%, #141a11 85%, #121a12 100%);
+    color: var(--ink);
+    font: 400 15.5px/1.55 var(--sans); -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  /* film grain, same as the landing page */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 100; pointer-events: none; opacity: .05;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 3px; border-radius: 6px; }
+  textarea:focus-visible { outline: none; }
+  svg { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--soft); background-clip: content-box; border: 2px solid transparent; }
+
+  /* ---------- Top bar ---------- */
+  header {
+    height: 60px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 20px;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; white-space: nowrap; }
+  .logo svg { width: 30px; height: 30px; }
+  /* the tree sets its own strokes; without this the global svg rule outlines every leaf in white */
+  .tree-s, .tree-hero { stroke: none; stroke-width: 0; fill: none; }
+  .logo .wm { font: 600 20px/1 var(--serif); letter-spacing: -.025em; }
+  .tabs { display: none; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; margin-left: 10px; }
+  body.has-docs .tabs { display: flex; }
+  .tab {
+    display: flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; border: 1px solid transparent;
+    background: transparent; color: var(--muted); white-space: nowrap; max-width: 230px; font-size: 14px; transition: .25s var(--ease);
+  }
+  .tab span { overflow: hidden; text-overflow: ellipsis; }
+  .tab:hover { color: var(--ink); border-color: var(--line); }
+  .tab.active { background: var(--ink); color: var(--bg); font-weight: 500; }
+  .tab.active svg { color: var(--accent); }
+  .spacer { flex: 1; }
+  .icon-btn {
+    display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: transparent;
+    border-radius: 999px; padding: 8px 16px; font-size: 14px; font-weight: 500; color: var(--ink); text-decoration: none;
+    transition: transform .3s var(--ease), border-color .25s, background .25s;
+  }
+  .icon-btn:hover { border-color: var(--soft); transform: translateY(-1px); }
+  .icon-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .icon-btn.primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+  .icon-btn.square { padding: 8px; width: 38px; height: 38px; justify-content: center; }
+  .only-docs { display: none; }
+  body.has-docs .only-docs { display: inline-flex; }
+
+  .pop {
+    position: absolute; right: 20px; top: 68px; z-index: 30; width: 330px; background: var(--raised);
+    border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 18px; display: none;
+  }
+  .pop.show { display: block; animation: pop .25s var(--ease); }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px); } }
+  .pop label { display: block; font: 500 11.5px/1 var(--mono); letter-spacing: 0; color: var(--soft); margin: 0 0 8px; }
+  .pop .field + .field { margin-top: 16px; }
+  select, input[type=password] {
+    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); outline: 0;
+  }
+  select:focus, input[type=password]:focus { border-color: var(--accent); }
+  .help { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  .help a { color: var(--accent-hi); }
+  .keyrow { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .keyrow .help { flex: 1; line-height: 1.35; }
+
+  /* ---------- Empty state ---------- */
+  #empty { flex: 1; overflow-y: auto; display: grid; place-items: center; padding: 40px 20px; }
+  body.has-docs #empty { display: none; }
+  .empty-in { width: 100%; max-width: 860px; text-align: center; }
+  .empty-in h1 { font: 600 clamp(28px, 4.2vw, 50px)/1.08 var(--serif); letter-spacing: -.04em; margin: 0 0 18px; text-wrap: balance; }
+  .empty-in h1 em {
+    font-style: normal; color: inherit;
+    background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 92% / 0 .26em;
+    animation: sweep 1s var(--ease) .5s forwards;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  }
+  @keyframes sweep { to { background-size: 100% .26em; } }
+  .privacy { margin: 20px auto 0; max-width: 36em; font-size: 12.5px; line-height: 1.5; color: var(--soft); }
+  .tree-hero { display: block; width: 72px; height: 72px; margin: 0 auto 18px; overflow: visible; }
+  .empty-in > p { color: var(--muted); margin: 0 auto 34px; max-width: 34em; font-size: 17px; }
+  .drop {
+    width: 100%; border: 1px dashed var(--soft); border-radius: 22px; padding: 46px 20px; background: rgba(255,255,255,.015);
+    transition: .3s var(--ease); display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .drop:hover, .drop.over { border-color: var(--orange); background: rgba(200,98,42,.09); transform: translateY(-2px); }
+  .drop .big { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--line); color: var(--accent-hi); display: grid; place-items: center; margin-bottom: 8px; }
+  .drop .big svg { width: 24px; height: 24px; }
+  .drop strong { font: 600 21px/1.2 var(--serif); letter-spacing: -.02em; }
+  .drop span { color: var(--muted); font-size: 14px; }
+  .samples { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 54px; text-align: left; border-top: 1px solid var(--line); }
+  .step { padding: 22px 24px 4px 0; }
+  .step + .step { padding-left: 24px; border-left: 1px solid var(--line); }
+  .step .num::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    margin-right: 8px; background: var(--accent); vertical-align: 1px; }
+  .step:nth-child(2) .num::before { background: var(--orange); }
+  .step:nth-child(3) .num::before { background: var(--mustard); }
+  .step .num { font: 500 11.5px/1 var(--mono); letter-spacing: 0; color: var(--accent); }
+  .step b { display: block; margin: 12px 0 6px; font: 600 19px/1.2 var(--serif); letter-spacing: -.02em; }
+  .step span { color: var(--muted); font-size: 14.5px; }
+
+  /* ---------- Workspace ---------- */
+  #work { flex: 1; min-height: 0; display: none; grid-template-columns: minmax(0, 1fr) 440px; }
+  body.has-docs #work { display: grid; }
+
+  /* Viewer */
+  .viewer { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #15120e; }
+  .vbar {
+    height: 48px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 14px;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+  }
+  .vbar .sep { width: 1px; height: 18px; background: var(--line); margin: 0 8px; }
+  .vbar .num { font: 500 12px/1 var(--mono); letter-spacing: 0; color: var(--muted); min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+  .vbtn { border: 0; background: transparent; border-radius: 50%; width: 32px; height: 32px; display: grid; place-items: center; color: var(--muted); transition: .2s; }
+  .vbtn:hover { background: var(--raised); color: var(--ink); }
+  .vbtn.on { background: var(--accent-soft); color: var(--accent-hi); }
+  #pdfScroll { flex: 1; overflow: auto; position: relative; padding: 28px 0 70px; }
+  #pages { display: flex; flex-direction: column; align-items: center; gap: 18px; width: max-content; min-width: 100%; padding: 0 28px; }
+  .pg { position: relative; width: var(--pw); aspect-ratio: var(--ar); background: #fff; border-radius: 3px; box-shadow: 0 18px 50px rgba(0,0,0,.5); flex: none; }
+  .pg img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: 3px; opacity: 0; transition: opacity .3s; }
+  .pg img.ready { opacity: 1; }
+  #pdfScroll.night .pg img { filter: invert(.9) hue-rotate(180deg); }
+  #pdfScroll.night .pg { background: #1b1814; }
+  .hl {
+    position: absolute; background: rgba(191, 132, 64, .42); border-radius: 2px; mix-blend-mode: multiply;
+    box-shadow: 0 0 0 2px rgba(191, 132, 64, .5); animation: pulse 1.6s ease-out 2;
+  }
+  #pdfScroll.night .hl { mix-blend-mode: normal; background: rgba(191, 132, 64, .35); }
+  .pg.flash { outline: 2px solid var(--accent); outline-offset: 3px; transition: outline .3s; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 2px rgba(191,132,64,.9), 0 0 0 0 rgba(191,132,64,.6); } 100% { box-shadow: 0 0 0 2px rgba(191,132,64,.5), 0 0 0 12px rgba(191,132,64,0); } }
+
+  /* Chat */
+  .chat { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); border-left: 1px solid var(--line); }
+  .chead { height: 48px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 20px; border-bottom: 1px solid var(--line); }
+  .chead > span { font: 600 16px/1 var(--serif); letter-spacing: -.015em; }
+  #scroll { flex: 1; overflow-y: auto; padding: 22px 20px 8px; }
+  .msg { margin: 0 0 22px; display: flex; flex-direction: column; }
+  .msg.user { align-items: flex-end; }
+  .bubble { max-width: 100%; min-width: 0; }
+  .msg.user .bubble { background: #373029; padding: 10px 16px; border-radius: 20px 20px 4px 20px; }
+  .msg.bot .bubble { padding: 0; }
+  .bubble p { margin: 0 0 .75em; } .bubble p:last-child { margin-bottom: 0; }
+  .bubble ul, .bubble ol { margin: .3em 0 .75em; padding-left: 1.3em; }
+  .bubble code { background: var(--bg); padding: 1px 6px; border-radius: 5px; font: 500 .88em ui-monospace, "SF Mono", Consolas, monospace; }
+  .cite {
+    display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin: 0 2px;
+    border: 0; border-radius: 6px; background: var(--accent-soft); color: var(--accent-hi);
+    font: 600 12px/1 var(--sans); vertical-align: 1px; transition: .2s;
+  }
+  .cite:hover { background: var(--accent); color: var(--accent-ink); }
+  .evid { margin-top: 14px; border: 1px solid var(--line); border-radius: 14px; padding: 12px 12px 8px; background: rgba(255,255,255,.02); }
+  .evid-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+  .evid-head .dot { width: 8px; height: 8px; border-radius: 50%; background: #6fbf8f; }
+  .evid.warn { border-color: rgba(217,163,95,.55); }
+  .evid.warn .evid-head { color: var(--accent-hi); }
+  .evid.warn .dot { background: var(--accent-hi); }
+  .evid.bad { border-color: rgba(224,118,107,.6); background: rgba(224,118,107,.07); }
+  .evid.bad .evid-head { color: var(--err); }
+  .evid.bad .dot { background: var(--err); }
+  .enote { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; line-height: 1.45; }
+  .enote.bad { color: var(--err); } .enote.warn { color: var(--accent-hi); }
+  .quote {
+    display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: baseline; width: 100%; text-align: left;
+    background: transparent; border: 0; border-top: 1px solid var(--line); padding: 8px 2px; border-radius: 0;
+    font-size: 13px; line-height: 1.45; color: var(--ink); transition: background .2s;
+  }
+  .quote:hover:not(:disabled) { background: var(--accent-soft); }
+  .quote .ck { color: #6fbf8f; font-weight: 700; }
+  .quote.unv .ck { color: var(--accent-hi); }
+  .quote .qt { font-style: normal; }
+  .quote .qp { color: var(--accent-hi); font-size: 12px; white-space: nowrap; }
+  .srcs { margin-top: 16px; display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line); }
+  .srcs-title { font: 500 11px/1 var(--mono); letter-spacing: 0; color: var(--soft); padding: 14px 0 6px; }
+  .src {
+    display: grid; grid-template-columns: 26px 1fr; column-gap: 12px; text-align: left; width: 100%;
+    background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 12px 8px 12px 0;
+    transition: background .25s, padding .25s var(--ease);
+  }
+  .src:hover, .src.flash { background: linear-gradient(90deg, rgba(191,132,64,.1), transparent); padding-left: 8px; }
+  .src .n { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent-hi); font: 500 12px/1 var(--mono); display: grid; place-items: center; }
+  .src .meta { font-size: 13.5px; font-weight: 600; display: flex; gap: 8px; min-width: 0; }
+  .src .meta .fn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src .meta .pgno { margin-left: auto; color: var(--accent-hi); white-space: nowrap; font: 500 11.5px/1.6 var(--mono); letter-spacing: 0; }
+  .src .prev {
+    font-size: 13px; color: var(--muted); line-height: 1.45; margin-top: 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .err { color: var(--err); }
+  .dots span { display: inline-block; width: 6px; height: 6px; margin-right: 4px; border-radius: 50%; background: var(--muted); animation: b 1s infinite; }
+  .dots span:nth-child(2) { animation-delay: .15s; } .dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes b { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  .welcome { color: var(--muted); }
+  .welcome b { font: 600 26px/1.15 var(--serif); color: var(--ink); display: block; margin-bottom: 6px; letter-spacing: -.03em; }
+  .quick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 7px 15px; font-size: 13.5px; transition: .25s var(--ease); }
+  .chip:hover { border-color: var(--accent); color: var(--accent-hi); transform: translateY(-1px); }
+  .notice { margin: 0 20px 10px; padding: 12px 14px; border-radius: 14px; background: var(--accent-soft); border: 1px solid rgba(191,132,64,.35); font-size: 13.5px; display: none; align-items: center; gap: 10px; }
+  .notice.show { display: flex; }
+  .notice button { margin-left: auto; border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 6px 14px; font-weight: 600; white-space: nowrap; }
+
+  .scope { display: flex; align-items: center; gap: 6px; margin: 0 2px 10px; min-width: 0; }
+  .scope[hidden] { display: none; }
+  .scope .lab { font: 500 10.5px/1 var(--mono); letter-spacing: 0; color: var(--soft); margin-right: 2px; white-space: nowrap; }
+  .scope button {
+    border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 5px 12px;
+    font-size: 12.5px; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: .25s var(--ease);
+  }
+  .scope button:hover { border-color: var(--soft); color: var(--ink); }
+  .scope button.on { background: var(--ink); border-color: var(--ink); color: var(--bg); font-weight: 500; }
+  .composer { padding: 10px 18px 16px; }
+  .box { display: flex; gap: 8px; align-items: flex-end; background: var(--bg); border: 1px solid var(--line); border-radius: 22px; padding: 6px 6px 6px 18px; transition: border-color .25s; }
+  .box:focus-within { border-color: var(--accent); }
+  textarea { flex: 1; border: 0; outline: 0; resize: none; background: transparent; max-height: 140px; padding: 9px 0; }
+  textarea::placeholder { color: var(--soft); }
+  .send { width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; transition: .25s var(--ease); }
+  .send:hover:not(:disabled) { background: var(--accent); transform: scale(1.05); }
+  .send:disabled { opacity: .3; cursor: not-allowed; }
+  .hint { text-align: center; font: 500 10.5px/1 var(--mono); letter-spacing: 0; color: var(--soft); margin-top: 12px; }
+
+  /* Overlays */
+  #busy { position: fixed; inset: 0; z-index: 40; background: rgba(20,17,13,.74); display: none; place-items: center; backdrop-filter: blur(4px); }
+  #busy.show { display: grid; }
+  #busy .card { background: var(--raised); border: 1px solid var(--line); border-radius: 999px; padding: 16px 26px; display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow); }
+  .spin { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: sp .8s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); z-index: 50;
+    background: var(--ink); color: var(--bg); padding: 11px 20px; border-radius: 999px; font-size: 14px; font-weight: 500;
+    opacity: 0; pointer-events: none; transition: .3s var(--ease); max-width: 90vw;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%); }
+
+  /* Mobile: one pane at a time */
+  .mtabs { display: none; }
+  @media (max-width: 900px) {
+    header { padding: 0 12px; gap: 8px; }
+    .logo .wm { display: none; }
+    #addBtn, #homeBtn { padding: 8px; width: 38px; height: 38px; justify-content: center; }
+    #addBtn .lbl, #homeBtn .lbl { display: none; }
+    .tab { max-width: 160px; }
+    #work { grid-template-columns: 1fr; }
+    body[data-pane="pdf"] .chat { display: none; }
+    body[data-pane="chat"] .viewer { display: none; }
+    body.has-docs .mtabs {
+      display: grid; grid-template-columns: 1fr 1fr; flex: none; background: var(--bg); border-top: 1px solid var(--line);
+    }
+    .mtabs button { border: 0; background: transparent; padding: 14px; color: var(--muted); font: 500 12px/1 var(--mono); letter-spacing: 0; }
+    .mtabs button.on { color: var(--accent-hi); box-shadow: inset 0 2px 0 var(--accent); }
+    .steps { grid-template-columns: 1fr; }
+    .step + .step { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); margin-top: 18px; padding-top: 22px; }
+    .chat { border-left: 0; }
+    .pop { right: 12px; left: 12px; width: auto; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    .empty-in h1 em { background-size: 100% .26em; }
+  }
+</style>
+</head>
+<body data-pane="chat">
+
+<header>
+  <a class="logo" href="/" title="Back to home"><svg viewBox="0 0 80 80" aria-hidden="true" class="tree-s"><g fill="none" stroke="#ece8dc" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M40 74V40M28 74h24M40 58L27 44M40 52L54 40M40 42V24M27 44L20 36M54 40L60 32M40 34L32 26M40 28L48 21"/></g><g transform="translate(17 33) rotate(-55)"><image href="/static/leaves/leaf-05-ginkgo-gold.png" x="-12.50" y="-11.33" width="25.00" height="22.66"/></g><g transform="translate(31 23) rotate(-25)"><image href="/static/leaves/leaf-03-beech-red.png" x="-7.81" y="-12.50" width="15.62" height="25.00"/></g><g transform="translate(40 15) rotate(0)"><image href="/static/leaves/leaf-04-aspen-yellow.png" x="-11.25" y="-12.50" width="22.51" height="25.00"/></g><g transform="translate(50 18) rotate(28)"><image href="/static/leaves/leaf-07-chestnut-orange.png" x="-4.91" y="-12.50" width="9.81" height="25.00"/></g><g transform="translate(63 29) rotate(55)"><image href="/static/leaves/leaf-01-maple-orange.png" x="-12.50" y="-11.57" width="25.00" height="23.14"/></g><g transform="translate(20 47) rotate(-80)"><image href="/static/leaves/leaf-02-oak-brown.png" x="-7.10" y="-12.50" width="14.21" height="25.00"/></g><g transform="translate(60 44) rotate(80)"><image href="/static/leaves/leaf-06-willow-darkred.png" x="-3.34" y="-12.50" width="6.69" height="25.00"/></g></svg><span class="wm">Readra</span></a>
+  <div class="tabs" id="tabs"></div>
+  <div class="spacer" id="hspacer"></div>
+  <button class="icon-btn only-docs" id="addBtn" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Add PDF</span></button>
+  <a class="icon-btn only-docs" id="homeBtn" href="/" title="Back to the home page (your documents stay open in this tab)"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span class="lbl">Home</span></a>
+  <button class="icon-btn square" id="settingsBtn" type="button" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+</header>
+
+<div class="pop" id="pop">
+  <div class="field"><label for="model">Model</label><select id="model"></select></div>
+  <div class="field" id="keyBox" hidden>
+    <label for="key">Groq API key</label>
+    <input type="password" id="key" placeholder="gsk_…" autocomplete="off" spellcheck="false">
+    <div class="keyrow"><button class="icon-btn" id="keyTest" type="button" style="padding:6px 14px;font-size:13px">Test key</button><span id="keyHint" class="help" style="margin:0">Paste the key, then press Test key.</span></div>
+    <div class="help" style="margin-top:12px">Readra runs on <b>your own</b> free Groq key. Get one at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> (sign in, Create API Key, copy it). The key stays in this browser tab and travels only with your own requests to reach Groq. Readra does not store or log it.</div>
+  </div>
+  <div class="only-docs" style="width:100%;margin-top:16px">
+    <button class="icon-btn" id="startOver" type="button" style="flex:1;justify-content:center">Remove all documents</button>
+  </div>
+</div>
+
+<input type="file" id="file" accept="application/pdf" multiple hidden>
+
+<!-- Empty state -->
+<section id="empty">
+  <div class="empty-in">
+    <svg viewBox="0 0 80 80" aria-hidden="true" class="tree-hero"><g fill="none" stroke="#ece8dc" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><path d="M40 74V40M28 74h24M40 58L27 44M40 52L54 40M40 42V24M27 44L20 36M54 40L60 32M40 34L32 26M40 28L48 21"/></g><g transform="translate(17 33) rotate(-55)"><image href="/static/leaves/leaf-05-ginkgo-gold.png" x="-12.50" y="-11.33" width="25.00" height="22.66"/></g><g transform="translate(31 23) rotate(-25)"><image href="/static/leaves/leaf-03-beech-red.png" x="-7.81" y="-12.50" width="15.62" height="25.00"/></g><g transform="translate(40 15) rotate(0)"><image href="/static/leaves/leaf-04-aspen-yellow.png" x="-11.25" y="-12.50" width="22.51" height="25.00"/></g><g transform="translate(50 18) rotate(28)"><image href="/static/leaves/leaf-07-chestnut-orange.png" x="-4.91" y="-12.50" width="9.81" height="25.00"/></g><g transform="translate(63 29) rotate(55)"><image href="/static/leaves/leaf-01-maple-orange.png" x="-12.50" y="-11.57" width="25.00" height="23.14"/></g><g transform="translate(20 47) rotate(-80)"><image href="/static/leaves/leaf-02-oak-brown.png" x="-7.10" y="-12.50" width="14.21" height="25.00"/></g><g transform="translate(60 44) rotate(80)"><image href="/static/leaves/leaf-06-willow-darkred.png" x="-3.34" y="-12.50" width="6.69" height="25.00"/></g></svg>
+    <h1>Chat with any PDF.<br><em>See exactly where it came from.</em></h1>
+    <p>Upload documents, ask in any language, and every answer is highlighted right on the source page.</p>
+    <button class="drop" id="drop" type="button">
+      <div class="big"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></div>
+      <strong>Drop your PDFs here</strong>
+      <span>or click to browse · up to 5 files · scanned PDFs are read with OCR</span>
+    </button>
+    <div class="samples" id="samples"></div>
+    <p class="privacy">Your documents are not stored permanently. They stay in memory for this session and are discarded after an hour of inactivity, or as soon as you remove them.</p>
+    <p class="privacy">To ask questions you use your own free Groq API key (about a minute to create). It stays in this browser tab, so the demo costs nothing and nobody shares a quota.</p>
+    <div class="steps">
+      <div class="step"><div class="num">01</div><b>Upload</b><span>Text and scanned pages are indexed in seconds.</span></div>
+      <div class="step"><div class="num">02</div><b>Ask</b><span>Any language. Follow-up questions work.</span></div>
+      <div class="step"><div class="num">03</div><b>Verify</b><span>Click a citation to jump to the highlighted passage.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Workspace -->
+<main id="work">
+  <section class="viewer">
+    <div class="vbar">
+      <button class="vbtn" id="zOut" type="button" title="Zoom out" aria-label="Zoom out"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6"/></svg></button>
+      <span class="num" id="zoomLbl">100%</span>
+      <button class="vbtn" id="zIn" type="button" title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6M11 8v6"/></svg></button>
+      <div class="sep"></div>
+      <button class="vbtn" id="pPrev" type="button" title="Previous page" aria-label="Previous page"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+      <span class="num" id="pageLbl">1 / 1</span>
+      <button class="vbtn" id="pNext" type="button" title="Next page" aria-label="Next page"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="spacer"></div>
+      <button class="vbtn" id="nightBtn" type="button" title="Dark pages" aria-label="Dark pages"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    </div>
+    <div id="pdfScroll"><div id="pages"></div></div>
+  </section>
+
+  <section class="chat">
+    <div class="chead">
+      <span>Ask your document</span>
+      <button class="icon-btn" id="clearBtn" type="button" style="padding:5px 13px;font-size:13px">Clear chat</button>
+    </div>
+    <div id="scroll"><div id="chat"></div></div>
+    <div class="notice" id="notice">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <span>Readra uses your own free Groq key. Add it to start chatting.</span>
+      <button id="noticeBtn" type="button">Add key</button>
+    </div>
+    <div class="composer">
+      <div class="scope" id="scope" hidden>
+        <span class="lab">Asking in</span>
+        <button type="button" id="scopeDoc" class="on"></button>
+        <button type="button" id="scopeAll">All documents</button>
+      </div>
+      <form class="box" id="form">
+        <textarea id="q" rows="1" placeholder="Ask something about your documents…"></textarea>
+        <button class="send" id="send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </form>
+      <div class="hint">Answers come from your documents only</div>
+    </div>
+  </section>
+</main>
+
+<nav class="mtabs">
+  <button id="mtPdf" type="button">Document</button>
+  <button id="mtChat" type="button" class="on">Chat</button>
+</nav>
+
+<div id="busy"><div class="card"><div class="spin"></div><span id="busyMsg">Working…</span></div></div>
+<div id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const store = {
+  get: (k) => { try { return sessionStorage.getItem(k) } catch { return null } },
+  set: (k, v) => { try { sessionStorage.setItem(k, v) } catch {} },
+};
+// Long file names that share a prefix look identical when cut at the end: keep both ends.
+const shortName = (n, max = 30) => (n.length <= max ? n : n.slice(0, max - 13) + "…" + n.slice(-12));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const FILE_ICON = '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+
+let session = null, cfg = null, docs = [], active = null, zoom = 1, busy = false, chatCount = 0;
+let pageEls = [], observer = null;
+
+/* ---------- helpers ---------- */
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 4200);
+}
+function setBusy(msg) { $("busyMsg").textContent = msg || ""; $("busy").classList.toggle("show", !!msg); }
+function showPane(p) {
+  document.body.dataset.pane = p;
+  $("mtPdf").classList.toggle("on", p === "pdf");
+  $("mtChat").classList.toggle("on", p === "chat");
+}
+async function api(path, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  if (session) headers["X-Session"] = session;
+  const key = store.get("groq_key");
+  if (key && !cfg?.server_key) headers["X-Groq-Key"] = key;
+  const res = await fetch(path, { ...opts, headers });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail } catch {}
+    throw new Error(detail);
+  }
+  return res;
+}
+const hasKey = () => cfg.server_key || !!store.get("groq_key");
+function updateNotice() { $("notice").classList.toggle("show", !hasKey() && document.body.classList.contains("has-docs")); }
+
+/* ---------- init ---------- */
+async function startSession() {
+  session = (await (await fetch("/api/session", { method: "POST" })).json()).session;
+  store.set("session", session);
+}
+async function init() {
+  cfg = await (await fetch("/api/config")).json();
+  // Coming back from the home page: reopen the documents this tab already uploaded.
+  const wanted = new URLSearchParams(location.search).get("sample");
+  let restored = null;
+  const saved = store.get("session");
+  if (saved && !wanted) {
+    session = saved;
+    try { restored = await (await api("/api/state")).json(); } catch { session = null; }
+  }
+  if (!session) await startSession();
+
+  const fillModels = (models) => {
+    const prev = $("model").value;
+    $("model").innerHTML = models.map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("");
+    if (models.some((m) => m.id === prev)) $("model").value = prev;
+  };
+  const loadModels = async () => {
+    try { fillModels((await (await api("/api/models")).json()).models); }
+    catch (e) { fillModels(cfg.models); if (hasKey()) toast(e.message); }
+  };
+  fillModels(cfg.models);
+  if (!cfg.server_key) {
+    $("keyBox").hidden = false;
+    $("key").value = store.get("groq_key") || "";
+    // Copy-paste often brings along spaces, line breaks, quotes or a "Bearer " prefix: strip them.
+    const cleanKey = (v) => v.replace(/[\s\u200b-\u200f\u2060\ufeff"'\u201c\u201d\u2018\u2019`]/g, "").replace(/^bearer/i, "");
+    const setHint = (text, tone) => { const h = $("keyHint"); h.textContent = text; h.style.color = tone === "bad" ? "var(--err)" : tone === "ok" ? "#6fbf8f" : ""; };
+    const hintFor = (k) => {
+      if (!k) return setHint("Paste the key, then press Test key.");
+      if (!/^[!-~]+$/.test(k)) return setHint("This has characters a key never contains. Copy it again.", "bad");
+      if (!k.startsWith("gsk_")) return setHint("Groq keys start with gsk_. Is this the right value?", "bad");
+      if (k.length < 40) return setHint(`Only ${k.length} characters: the key looks cut off.`, "bad");
+      setHint(`Format looks right (${k.length} characters). Press Test key.`);
+    };
+    hintFor(cleanKey($("key").value));
+    $("key").addEventListener("input", (e) => {
+      const k = cleanKey(e.target.value);
+      if (k !== e.target.value) e.target.value = k;
+      store.set("groq_key", k); hintFor(k); updateNotice();
+    });
+    $("key").addEventListener("change", loadModels);
+    $("keyTest").onclick = async () => {
+      const k = cleanKey($("key").value);
+      if (!k) return setHint("Paste the key first.", "bad");
+      store.set("groq_key", k); setHint("Testing…");
+      try {
+        const d = await (await api("/api/models")).json();
+        fillModels(d.models);
+        setHint(`Key works. ${d.models.length} models available.`, "ok");
+        updateNotice();
+      } catch (e) { setHint(e.message, "bad"); }
+    };
+  }
+  if (hasKey()) loadModels();
+
+  $("samples").innerHTML = cfg.samples
+    .map((s) => `<button class="icon-btn" type="button" data-name="${esc(s.name)}">${FILE_ICON}${esc(s.label)}</button>`).join("");
+  const loadSample = async (name) => {
+    setBusy("Indexing sample…");
+    try {
+      const info = await (await api("/api/sample?name=" + encodeURIComponent(name), { method: "POST" })).json();
+      applyState(info, { fresh: true });
+    } catch (e) { toast(e.message); }
+    setBusy(null);
+  };
+  $("samples").querySelectorAll("button").forEach((b) => (b.onclick = () => loadSample(b.dataset.name)));
+  // Deep link from the landing page: /app?sample=sample_handbook.pdf
+  if (wanted && cfg.samples.some((s) => s.name === wanted)) loadSample(wanted);
+  else if (restored?.docs?.length) applyState(restored, { fresh: true, quiet: true });
+}
+
+/* ---------- documents ---------- */
+function applyState(info, { fresh = false, quiet = false } = {}) {
+  const before = new Set(docs.map((d) => d.name));
+  docs = info.docs;
+  const added = docs.find((d) => !before.has(d.name));
+  if (fresh || !docs.some((d) => d.name === active)) active = (added || docs[0]).name;
+  else if (added) active = added.name;
+  document.body.classList.add("has-docs");
+  renderTabs();
+  renderViewer();
+  if (fresh || !chatCount) welcome(info);
+  if (info.ocr_pages && !quiet) toast(`${info.ocr_pages} scanned page(s) were read with OCR.`);
+  renderScope();
+  updateNotice();
+  showPane("chat");
+  $("q").focus();
+}
+function renderTabs() {
+  $("tabs").innerHTML = docs.map((d) =>
+    `<button class="tab ${d.name === active ? "active" : ""}" type="button" data-name="${esc(d.name)}" title="${esc(d.name)}">${FILE_ICON}<span>${esc(shortName(d.name))}</span></button>`).join("");
+  $("tabs").querySelectorAll(".tab").forEach((t) => (t.onclick = () => { active = t.dataset.name; renderTabs(); renderViewer(); }));
+  renderScope();
+}
+
+/* Which documents a question searches: the open one (default) or all of them. */
+let scopeAll = false;
+function renderScope() {
+  const many = docs.length > 1;
+  $("scope").hidden = !many;
+  if (!many) scopeAll = false;
+  $("scopeDoc").textContent = active ? shortName(active, 26) : "This document";
+  $("scopeDoc").title = active || "";
+  $("scopeDoc").classList.toggle("on", !scopeAll);
+  $("scopeAll").classList.toggle("on", scopeAll);
+}
+$("scopeDoc").onclick = () => { scopeAll = false; renderScope(); };
+$("scopeAll").onclick = () => { scopeAll = true; renderScope(); };
+const scopeFiles = () => (docs.length > 1 && !scopeAll && active ? [active] : null);
+async function uploadFiles(list) {
+  const files = [...list].filter((f) => f.name.toLowerCase().endsWith(".pdf"));
+  if (!files.length) return toast("Please choose PDF files.");
+  setBusy(files.length > 1 ? "Indexing documents…" : "Indexing document…");
+  try {
+    const fd = new FormData();
+    files.forEach((f) => fd.append("files", f));
+    const info = await (await api("/api/upload", { method: "POST", body: fd })).json();
+    if (info.skipped?.length) toast("Skipped: " + info.skipped.join("; "));
+    applyState(info);
+  } catch (e) { toast(e.message); }
+  setBusy(null);
+  $("file").value = "";
+}
+$("file").onchange = (e) => uploadFiles(e.target.files);
+$("addBtn").onclick = () => $("file").click();
+$("drop").onclick = () => $("file").click();
+["dragenter", "dragover"].forEach((ev) => $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", (e) => uploadFiles(e.dataTransfer.files));
+document.addEventListener("dragover", (e) => e.preventDefault());
+document.addEventListener("drop", (e) => {
+  if (e.target.closest("#drop")) return;
+  e.preventDefault();
+  if (document.body.classList.contains("has-docs") && e.dataTransfer?.files?.length) uploadFiles(e.dataTransfer.files);
+});
+$("startOver").onclick = async () => {
+  if (busy) return;
+  $("pop").classList.remove("show");
+  fetch("/api/session", { method: "DELETE", headers: { "X-Session": session } }).catch(() => {});
+  await startSession();
+  docs = []; active = null; chatCount = 0;
+  $("chat").innerHTML = ""; $("pages").innerHTML = "";
+  document.body.classList.remove("has-docs");
+  renderScope();
+};
+
+/* ---------- viewer ---------- */
+function pageWidth() {
+  const avail = $("pdfScroll").clientWidth - 48;
+  return Math.max(260, Math.min(avail, 860)) * zoom;
+}
+function renderViewer() {
+  const doc = docs.find((d) => d.name === active);
+  const root = $("pages");
+  root.innerHTML = "";
+  pageEls = [];
+  observer?.disconnect();
+  if (!doc) return;
+  root.style.setProperty("--pw", pageWidth() + "px");
+  observer = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      const img = en.target.querySelector("img");
+      if (!img.src) {
+        const dpi = zoom <= 1 ? 110 : zoom <= 1.5 ? 150 : 190;
+        img.onload = () => img.classList.add("ready");
+        img.src = `/api/render?session=${session}&file=${encodeURIComponent(doc.name)}&page=${en.target.dataset.page}&dpi=${dpi}`;
+      }
+      observer.unobserve(en.target);
+    });
+  }, { root: $("pdfScroll"), rootMargin: "800px 0px" });
+  doc.sizes.forEach(([w, h], i) => {
+    const el = document.createElement("div");
+    el.className = "pg"; el.dataset.page = i + 1;
+    el.style.setProperty("--ar", `${w} / ${h}`);
+    el.innerHTML = `<img alt="Page ${i + 1}">`;
+    root.appendChild(el); pageEls.push(el); observer.observe(el);
+  });
+  $("pdfScroll").scrollTop = 0;
+  $("zoomLbl").textContent = Math.round(zoom * 100) + "%";
+  updatePageLabel();
+}
+function currentPage() {
+  const sc = $("pdfScroll"), y = sc.scrollTop + sc.clientHeight * 0.35;
+  let cur = 1;
+  for (const el of pageEls) { if (el.offsetTop <= y) cur = +el.dataset.page; else break; }
+  return cur;
+}
+function updatePageLabel() { $("pageLbl").textContent = `${pageEls.length ? currentPage() : 0} / ${pageEls.length}`; }
+let raf = 0;
+$("pdfScroll").addEventListener("scroll", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(updatePageLabel); });
+function goPage(n) {
+  const el = pageEls[Math.max(0, Math.min(pageEls.length - 1, n - 1))];
+  if (el) $("pdfScroll").scrollTo({ top: el.offsetTop - 14, behavior: "smooth" });
+}
+$("pPrev").onclick = () => goPage(currentPage() - 1);
+$("pNext").onclick = () => goPage(currentPage() + 1);
+function setZoom(z) {
+  zoom = Math.max(0.5, Math.min(2.2, Math.round(z * 100) / 100));
+  const keep = currentPage();
+  renderViewer(); goPage(keep);
+}
+$("zIn").onclick = () => setZoom(zoom + 0.15);
+$("zOut").onclick = () => setZoom(zoom - 0.15);
+$("nightBtn").onclick = () => {
+  const on = $("pdfScroll").classList.toggle("night");
+  $("nightBtn").classList.toggle("on", on);
+};
+let rz = 0;
+window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (docs.length) { $("pages").style.setProperty("--pw", pageWidth() + "px"); updatePageLabel(); } }, 120); });
+
+function clearHighlights() {
+  document.querySelectorAll(".hl").forEach((n) => n.remove());
+  document.querySelectorAll(".pg.flash").forEach((n) => n.classList.remove("flash"));
+}
+async function jumpTo(file, page, text, query = "") {
+  showPane("pdf");
+  if (file !== active) { active = file; renderTabs(); renderViewer(); }
+  await new Promise((r) => requestAnimationFrame(r));
+  const el = pageEls[page - 1];
+  if (!el) return;
+  clearHighlights();
+  $("pdfScroll").scrollTo({ top: el.offsetTop - 14, behavior: "smooth" });
+  el.classList.add("flash");
+  setTimeout(() => el.classList.remove("flash"), 1600);
+  try {
+    const res = await api("/api/highlight", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file, page, text, query }),
+    });
+    const { rects } = await res.json();
+    const [w, h] = docs.find((d) => d.name === file).sizes[page - 1];
+    rects.forEach(([x0, y0, x1, y1]) => {
+      const pad = 1.5;
+      const d = document.createElement("div");
+      d.className = "hl";
+      d.style.left = ((x0 - pad) / w) * 100 + "%";
+      d.style.top = ((y0 - pad) / h) * 100 + "%";
+      d.style.width = ((x1 - x0 + pad * 2) / w) * 100 + "%";
+      d.style.height = ((y1 - y0 + pad * 2) / h) * 100 + "%";
+      el.appendChild(d);
+    });
+    if (rects.length) {
+      const top = el.offsetTop + (rects[0][1] / h) * el.offsetHeight - 90;
+      $("pdfScroll").scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }
+  } catch (e) { /* the page jump alone is still useful */ }
+}
+
+/* ---------- chat ---------- */
+const QUICK = ["Summarize this document", "List the key points", "What are the important numbers and dates?"];
+function welcome(info) {
+  chatCount = 0;
+  $("chat").innerHTML = `<div class="msg bot"><div class="bubble welcome">
+      <p><b>Ready.</b> ${info.docs.length} document(s) indexed (${info.chunks} passages). Ask anything — answers cite the page they came from.</p>
+      <div class="quick">${QUICK.map((s) => `<button class="chip" type="button">${esc(s)}</button>`).join("")}</div>
+    </div></div>`;
+  $("chat").querySelectorAll(".chip").forEach((c) => (c.onclick = () => { $("q").value = c.textContent; ask(); }));
+  api("/api/reset", { method: "POST" }).catch(() => {});
+}
+$("clearBtn").onclick = () => { if (docs.length) welcome({ docs, chunks: "" }); };
+
+function md(text, sources) {
+  const lines = esc(text).split("\n");
+  const out = []; let list = null;
+  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  const inline = (s) => s
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\[(\d{1,2})\]/g, (m, n) => (sources.some((x) => x.n == n) ? `<button class="cite" data-n="${n}" type="button">${n}</button>` : m));
+  for (const raw of lines) {
+    const line = raw.trim();
+    let m;
+    if ((m = line.match(/^[-*•]\s+(.*)/))) {
+      if (list !== "ul") { close(); out.push("<ul>"); list = "ul"; }
+      out.push(`<li>${inline(m[1])}</li>`);
+    } else if ((m = line.match(/^\d+[.)]\s+(.*)/))) {
+      if (list !== "ol") { close(); out.push("<ol>"); list = "ol"; }
+      out.push(`<li>${inline(m[1])}</li>`);
+    } else if (!line) { close(); }
+    else { close(); out.push(`<p>${inline(line)}</p>`); }
+  }
+  close();
+  return out.join("");
+}
+
+const cleanText = (t) => t.replace(/[-�□]/g, " ").replace(/\s+/g, " ").trim();
+function sourcesHtml(sources, text) {
+  if (!sources.length) return "";
+  const cited = new Set([...text.matchAll(/\[(\d{1,2})\]/g)].map((m) => +m[1]));
+  const list = sources.filter((s) => cited.has(s.n));
+  const shown = list.length ? list : sources;
+  return `<div class="srcs"><div class="srcs-title">Sources · click to open in the document</div>` + shown.map((s) => `
+    <button class="src" type="button" data-n="${s.n}">
+      <span class="n">${s.n}</span>
+      <span class="meta"><span class="fn" title="${esc(s.file)}">${esc(shortName(s.file))}</span><span class="pgno">page ${s.page}</span></span>
+      <span class="prev">${esc(cleanText(s.text))}</span>
+    </button>`).join("") + `</div>`;
+}
+
+/* What the model quoted from the document, and whether the server could confirm it. */
+function evidenceHtml(ev) {
+  if (!ev) return "";
+  const items = ev.items || [], bad = ev.unsupported || [];
+  const mismatch = ev.judge && ev.judge.ok === false;
+  let level = "ok", label = "Verified against the document";
+  if (mismatch) { level = "bad"; label = "Possible mix-up. Please check"; }
+  else if (ev.status === "missing") { level = "warn"; label = "No quote given. Check the source"; }
+  else if (ev.status !== "verified" || bad.length) { level = "warn"; label = "Not fully verified. Check the source"; }
+  const rows = items.map((it, i) => `
+    <button class="quote ${it.verified ? "" : "unv"}" type="button" data-i="${i}" ${it.file ? "" : "disabled"}>
+      <span class="ck">${it.verified ? "✓" : "!"}</span>
+      <span class="qt">${esc(it.quote)}</span>
+      ${it.file ? `<span class="qp" title="${esc(it.file)}">p. ${it.page}${docs.length > 1 ? " · " + esc(shortName(it.file, 20)) : ""}</span>` : ""}
+    </button>`).join("");
+  const notes = [
+    ev.corrected ? `<div class="enote">The first answer was re-checked and corrected automatically.</div>` : "",
+    mismatch ? `<div class="enote bad">${esc(ev.judge.reason)}</div>` : "",
+    bad.length ? `<div class="enote warn">Not found in the cited text: ${bad.map(esc).join(", ")}</div>` : "",
+  ].join("");
+  return `<div class="evid ${level}"><div class="evid-head"><span class="dot"></span>${esc(label)}</div>${notes}${rows}</div>`;
+}
+
+function addMsg(role, html = "") {
+  const d = document.createElement("div");
+  d.className = "msg " + (role === "user" ? "user" : "bot");
+  d.innerHTML = `<div class="bubble">${html}</div>`;
+  $("chat").appendChild(d);
+  $("scroll").scrollTop = $("scroll").scrollHeight;
+  return d.querySelector(".bubble");
+}
+
+$("chat").addEventListener("click", (e) => {
+  const bubble = e.target.closest(".bubble");
+  const quote = e.target.closest(".quote");
+  if (quote && bubble?._evidence) {
+    const it = bubble._evidence.items[+quote.dataset.i];
+    if (it?.file) jumpTo(it.file, it.page, it.quote, "");
+    return;
+  }
+  const pick = (n) => bubble?._sources?.find((s) => s.n == n);
+  const cite = e.target.closest(".cite");
+  const row = e.target.closest(".src");
+  const hit = pick((cite || row)?.dataset.n);
+  if (!hit) return;
+  bubble.querySelectorAll(".src").forEach((r) => r.classList.toggle("flash", r.dataset.n == hit.n));
+  jumpTo(hit.file, hit.page, hit.text, claimFor(bubble, hit.n));
+});
+
+// Question + the answer sentences that cite source n: what the highlight should match.
+function claimFor(bubble, n) {
+  const answer = bubble._answer || "";
+  const mine = answer.split(/(?<=[.!?])\s+|\n+/).filter((s) => s.includes(`[${n}]`));
+  const claim = (mine.length ? mine.join(" ") : answer).replace(/\[\d{1,2}\]/g, "").replace(/[*`]/g, "");
+  return `${bubble._question || ""} ${claim}`.trim();
+}
+
+async function ask() {
+  const q = $("q").value.trim();
+  if (!q || busy || !docs.length) return;
+  if (!hasKey()) { $("pop").classList.add("show"); $("key")?.focus(); return toast("Add your Groq API key first."); }
+  busy = true; $("send").disabled = true; $("q").value = ""; autosize();
+  chatCount++;
+  addMsg("user", `<p>${esc(q)}</p>`);
+  const bubble = addMsg("bot", `<span class="dots"><span></span><span></span><span></span></span>`);
+  let sources = [], text = "", evidence = null;
+  try {
+    const res = await api("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q, model: $("model").value, files: scopeFiles() }),
+    });
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 1);
+        if (!line) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "sources") { sources = ev.data; bubble._sources = sources; }
+        else if (ev.type === "token") { text += ev.data; bubble.innerHTML = md(text, sources); }
+        else if (ev.type === "replace") { text = ev.data; bubble.innerHTML = md(text, sources); }
+        else if (ev.type === "evidence") evidence = ev.data;
+        else if (ev.type === "error") throw new Error(ev.data);
+        $("scroll").scrollTop = $("scroll").scrollHeight;
+      }
+    }
+    bubble._question = q; bubble._answer = text; bubble._evidence = evidence;
+    bubble.innerHTML = md(text, sources) + evidenceHtml(evidence) + sourcesHtml(sources, text);
+  } catch (e) {
+    bubble.innerHTML = (text ? md(text, sources) : "") + `<p class="err">⚠ ${esc(e.message)}</p>`;
+  }
+  busy = false; $("send").disabled = false; $("q").focus();
+  $("scroll").scrollTop = $("scroll").scrollHeight;
+}
+function autosize() { const t = $("q"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 140) + "px"; }
+$("q").addEventListener("input", autosize);
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); } });
+$("form").addEventListener("submit", (e) => { e.preventDefault(); ask(); });
+
+/* ---------- chrome ---------- */
+$("settingsBtn").onclick = (e) => { e.stopPropagation(); $("pop").classList.toggle("show"); };
+$("noticeBtn").onclick = (e) => { e.stopPropagation(); $("pop").classList.add("show"); $("key")?.focus(); };
+document.addEventListener("click", (e) => { if (!e.target.closest("#pop") && !e.target.closest("#settingsBtn")) $("pop").classList.remove("show"); });
+$("mtPdf").onclick = () => showPane("pdf");
+$("mtChat").onclick = () => showPane("chat");
+
+init().catch(() => toast("Could not reach the server."));
+</script>
+</body>
+</html>

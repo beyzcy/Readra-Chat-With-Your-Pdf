@@ -1,0 +1,30 @@
+# Keep the build context small and free of secrets. Patterns here are relative to this folder,
+# so nested folders need the **/ prefix.
+
+# local environment and caches
+.venv/
+venv/
+**/__pycache__/
+**/*.pyc
+**/*.log
+.pytest_cache/
+.mypy_cache/
+
+# secrets
+.env
+.env.*
+
+# version control and editors
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+.claude/
+
+# not needed to run the app (screenshots, evaluation, docs)
+docs/
+eval/
+README.md
+Dockerfile
+.dockerignore
